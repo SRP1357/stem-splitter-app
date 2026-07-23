@@ -74,20 +74,20 @@ export function FileDropZone({
       }}
       onDragLeave={() => setIsDragActive(false)}
       onDrop={handleDrop}
-      className={`w-full rounded-2xl border-2 border-dashed bg-white p-8 text-center shadow-sm transition-colors ${
+      className={`w-full rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm transition-colors ${
         isDragActive
-          ? "border-stone-900 bg-stone-100"
-          : "border-stone-300 hover:border-stone-400"
+          ? "border-slate-500 bg-slate-50"
+          : "border-slate-300 hover:border-slate-400"
       } ${disabled ? "cursor-wait" : "cursor-pointer"}`}
     >
       {state.fileName ? (
         <>
-          <p className="truncate font-medium text-stone-900">
+          <p className="truncate text-sm font-medium text-slate-900">
             {state.fileName}
           </p>
-          {status && <p className="mt-1.5 text-sm text-stone-500">{status}</p>}
+          {status && <p className="mt-1.5 text-sm text-slate-500">{status}</p>}
           {state.backend && state.phase === "separating" && (
-            <p className="mt-1.5 text-xs text-stone-400">
+            <p className="mt-1.5 text-xs text-slate-400">
               Running on{" "}
               {state.backend === "webgpu" ? "GPU (WebGPU)" : "CPU (WASM)"}
               {state.backend === "wasm" && " — hang tight on long tracks"}
@@ -96,10 +96,8 @@ export function FileDropZone({
         </>
       ) : (
         <>
-          <p className="text-lg font-semibold text-stone-900">
-            Drop an audio file here
-          </p>
-          <p className="mt-1 text-sm text-stone-500">
+          <p className="font-medium text-slate-900">Drop an audio file here</p>
+          <p className="mt-1 text-sm text-slate-400">
             or click to browse — mp3, wav, flac, m4a, ogg
           </p>
         </>

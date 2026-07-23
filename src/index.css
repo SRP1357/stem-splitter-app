@@ -1,7 +1,12 @@
+@import "@fontsource-variable/inter";
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
 body {
-  @apply bg-stone-50 text-stone-900 antialiased;
+  @apply bg-slate-100 text-slate-800 antialiased;
 }
 
 /*

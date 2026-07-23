@@ -20,8 +20,10 @@ export default function App() {
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-10 px-4 py-14">
       <header className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight">Stem Splitter</h1>
-        <p className="mx-auto mt-3 max-w-xl text-stone-500">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+          Stem Splitter
+        </h1>
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
           Split any song into its stems — drums, bass, vocals and more —
           entirely in your browser. Nothing is ever uploaded.
         </p>
@@ -48,7 +50,7 @@ export default function App() {
         </p>
       )}
 
-      <footer className="mt-auto pt-8 text-center text-xs text-stone-400">
+      <footer className="mt-auto pt-8 text-center text-xs text-slate-400">
         Powered by HT-Demucs (Alexandre Défossez / Meta AI) via ONNX Runtime
         Web. All processing happens on your device.
       </footer>

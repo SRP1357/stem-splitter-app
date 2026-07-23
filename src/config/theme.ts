@@ -22,4 +22,4 @@ export const STEM_THEMES: Record<StemName, StemTheme> = {
 };
 
 /** Neutral stroke for paths that have not received any progress yet. */
-export const IDLE_PATH_COLOR = "#d6d3d1"; // stone-300
+export const IDLE_PATH_COLOR = "#cbd5e1"; // slate-300

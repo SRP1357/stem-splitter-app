@@ -34,21 +34,21 @@ export function StemCard({
       ref={ref}
       className="rounded-xl border bg-white p-3 shadow-sm transition-all duration-300"
       style={{
-        borderColor: result || isActive ? theme.color : "#e7e5e4", // stone-200
+        borderColor: result || isActive ? theme.color : "#e2e8f0", // slate-200
         backgroundColor: result ? theme.tint : undefined,
       }}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-sm font-semibold capitalize">
+        <span className="flex items-center gap-2 text-sm font-medium capitalize text-slate-800">
           <span
             aria-hidden="true"
-            className="inline-block h-2.5 w-2.5 rounded-full"
+            className="inline-block h-2 w-2 rounded-full"
             style={{ backgroundColor: theme.color }}
           />
           {stem}
         </span>
         {isActive && (
-          <span className="text-xs tabular-nums text-stone-400">
+          <span className="text-xs tabular-nums text-slate-400">
             {Math.round(progress * 100)}%
           </span>
         )}
