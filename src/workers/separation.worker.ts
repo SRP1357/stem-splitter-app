@@ -89,8 +89,12 @@ const SESSION_OPTIONS: ort.InferenceSession.SessionOptions = {
  * WASM. Trying the providers separately lets us report which backend
  * actually ended up running.
  */
-async function createSession(modelBytes: Uint8Array): Promise<CreatedSession> {
-  const supportsWebGpu = "gpu" in self.navigator && !webGpuKnownUnusable;
+async function createSession(
+  modelBytes: Uint8Array,
+  allowWebGpu: boolean,
+): Promise<CreatedSession> {
+  const supportsWebGpu =
+    allowWebGpu && "gpu" in self.navigator && !webGpuKnownUnusable;
   if (supportsWebGpu) {
     try {
       const session = await ort.InferenceSession.create(modelBytes, {
@@ -231,6 +235,7 @@ async function separate(
   modelId: ModelVariantId,
   left: Float32Array,
   right: Float32Array,
+  forceWasm: boolean,
 ): Promise<void> {
   const variant = MODEL_VARIANTS[modelId];
   configureRuntimeEnvironment();
@@ -278,7 +283,7 @@ async function separate(
       outputRows: file.outputRows,
     };
 
-    let created = await createSession(modelBytes);
+    const created = await createSession(modelBytes, !forceWasm);
     reportBackend(created.backend);
 
     let accumulators: Float32Array[][];
@@ -287,14 +292,12 @@ async function separate(
     } catch (error) {
       if (created.backend !== "webgpu") throw error;
       // The GPU died mid-run (typically Windows' watchdog killing a
-      // long-running dispatch). Redo this file on the WASM backend, which
-      // is slower but dependable. Don't await release: it can hang on a
-      // dead device.
-      webGpuKnownUnusable = true;
-      void created.session.release().catch(() => undefined);
-      created = await createSession(modelBytes);
-      reportBackend(created.backend);
-      accumulators = await runFilePass(created, context);
+      // long-running dispatch). The WASM runtime in this worker is now
+      // wedged — the hung GPU call never settles and blocks all further
+      // runs — so recovery needs a brand-new worker. The main thread
+      // handles that when it sees this message.
+      post({ type: "webgpu-device-lost" });
+      return;
     }
     await created.session.release();
 
@@ -323,7 +326,12 @@ async function separate(
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
   if (request.type === "separate") {
-    separate(request.modelId, request.left, request.right).catch(
+    separate(
+      request.modelId,
+      request.left,
+      request.right,
+      request.forceWasm,
+    ).catch(
       (error: unknown) => {
         post({
           type: "error",

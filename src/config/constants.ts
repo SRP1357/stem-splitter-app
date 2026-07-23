@@ -20,6 +20,13 @@ export const MODEL_MANIFEST_URL = `${MODEL_CHUNKS_BASE_URL}/manifest.json`;
 /** Cache API bucket used to persist downloaded models across visits. */
 export const MODEL_CACHE_NAME = "stem-splitter-model-cache-v1";
 
+/**
+ * localStorage key set after a WebGPU device loss (e.g. Windows' GPU
+ * watchdog reset). Once set, separation skips the WebGPU attempt on this
+ * machine and goes straight to WASM.
+ */
+export const FORCE_WASM_STORAGE_KEY = "stem-splitter.force-wasm";
+
 /** Demucs operates exclusively on 44.1 kHz stereo audio. */
 export const MODEL_SAMPLE_RATE = 44100;
 export const CHANNEL_COUNT = 2;

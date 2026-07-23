@@ -16,6 +16,8 @@ export type WorkerRequest = {
   modelId: ModelVariantId;
   left: Float32Array;
   right: Float32Array;
+  /** Skip the WebGPU attempt entirely (set after a GPU device loss). */
+  forceWasm: boolean;
 };
 
 /** Messages the separation worker sends back to the main thread. */
@@ -38,4 +40,11 @@ export type WorkerResponse =
   /** Emitted as soon as one model file's stems are fully separated. */
   | { type: "stems-ready"; stems: SeparatedStem[] }
   | { type: "done" }
+  /**
+   * The GPU device was lost mid-run (e.g. Windows' watchdog reset). The
+   * WASM runtime inside this worker is left wedged — any further run throws
+   * "session already started" — so the main thread must terminate this
+   * worker and retry in a fresh one with forceWasm.
+   */
+  | { type: "webgpu-device-lost" }
   | { type: "error"; message: string };

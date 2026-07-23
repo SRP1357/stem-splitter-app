@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  FORCE_WASM_STORAGE_KEY,
   MODEL_SAMPLE_RATE,
   MODEL_VARIANTS,
 } from "../config/constants";
@@ -14,12 +15,7 @@ import type {
 } from "../types/messages";
 
 export type SeparationPhase =
-  | "idle"
-  | "decoding"
-  | "downloading-model"
-  | "separating"
-  | "done"
-  | "error";
+  "idle" | "decoding" | "downloading-model" | "separating" | "done" | "error";
 
 export interface StemResult {
   name: StemName;
@@ -40,6 +36,23 @@ export interface SeparationState {
   /** Grows incrementally: specialist stems appear as soon as they finish. */
   stems: StemResult[];
   errorMessage: string | null;
+}
+
+/** localStorage can throw (e.g. blocked storage); treat that as "not set". */
+function isWebGpuKnownUnusable(): boolean {
+  try {
+    return localStorage.getItem(FORCE_WASM_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function rememberWebGpuUnusable(): void {
+  try {
+    localStorage.setItem(FORCE_WASM_STORAGE_KEY, "true");
+  } catch {
+    // Non-persistent storage just means we re-detect on the next visit.
+  }
 }
 
 const INITIAL_STATE: SeparationState = {
@@ -86,97 +99,124 @@ export function useStemSeparation() {
         };
       });
 
-      let decoded;
-      try {
-        decoded = await decodeAudioFile(file);
-      } catch {
-        setState((previous) => ({
-          ...previous,
-          phase: "error",
-          errorMessage:
-            "Could not decode this file. Please use a common audio format (mp3, wav, flac, m4a, ogg).",
-        }));
-        return;
-      }
-
-      workerRef.current ??= new Worker(
-        new URL("../workers/separation.worker.ts", import.meta.url),
-        { type: "module" },
-      );
-      const worker = workerRef.current;
       const stemOrder = MODEL_VARIANTS[modelId].stemNames;
 
-      worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-        const message = event.data;
-        switch (message.type) {
-          case "model-download-progress":
-            setState((previous) => ({
-              ...previous,
-              phase: "downloading-model",
-              currentFile: message.fileIndex + 1,
-              fileCount: message.fileCount,
-              progress:
-                message.totalBytes > 0
-                  ? message.loadedBytes / message.totalBytes
-                  : 0,
-            }));
-            break;
-          case "backend-selected":
-            setState((previous) => ({
-              ...previous,
-              backend: message.backend,
-              phase: "separating",
-              progress: 0,
-            }));
-            break;
-          case "separation-progress":
-            setState((previous) => ({
-              ...previous,
-              phase: "separating",
-              currentFile: message.passIndex + 1,
-              fileCount: message.passCount,
-              progress: message.completedUnits / message.totalUnits,
-            }));
-            break;
-          case "stems-ready": {
-            const newStems: StemResult[] = message.stems.map((stem) => ({
-              name: stem.name,
-              wavUrl: URL.createObjectURL(
-                encodeWavStereo(stem.left, stem.right, MODEL_SAMPLE_RATE),
-              ),
-            }));
-            setState((previous) => ({
-              ...previous,
-              stems: [...previous.stems, ...newStems].sort(
-                (a, b) => stemOrder.indexOf(a.name) - stemOrder.indexOf(b.name),
-              ),
-            }));
-            break;
-          }
-          case "done":
-            setState((previous) => ({
-              ...previous,
-              phase: "done",
-              progress: 1,
-            }));
-            break;
-          case "error":
-            setState((previous) => ({
-              ...previous,
-              phase: "error",
-              errorMessage: message.message,
-            }));
-            break;
+      // Decoded buffers are transferred to the worker, so a restart (after
+      // a GPU device loss) has to decode the file again.
+      const startRun = async (forceWasm: boolean): Promise<void> => {
+        let decoded;
+        try {
+          decoded = await decodeAudioFile(file);
+        } catch {
+          setState((previous) => ({
+            ...previous,
+            phase: "error",
+            errorMessage:
+              "Could not decode this file. Please use a common audio format (mp3, wav, flac, m4a, ogg).",
+          }));
+          return;
         }
+
+        workerRef.current ??= new Worker(
+          new URL("../workers/separation.worker.ts", import.meta.url),
+          { type: "module" },
+        );
+        const worker = workerRef.current;
+
+        worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+          const message = event.data;
+          switch (message.type) {
+            case "model-download-progress":
+              setState((previous) => ({
+                ...previous,
+                phase: "downloading-model",
+                currentFile: message.fileIndex + 1,
+                fileCount: message.fileCount,
+                progress:
+                  message.totalBytes > 0
+                    ? message.loadedBytes / message.totalBytes
+                    : 0,
+              }));
+              break;
+            case "backend-selected":
+              setState((previous) => ({
+                ...previous,
+                backend: message.backend,
+                phase: "separating",
+                progress: 0,
+              }));
+              break;
+            case "separation-progress":
+              setState((previous) => ({
+                ...previous,
+                phase: "separating",
+                currentFile: message.passIndex + 1,
+                fileCount: message.passCount,
+                progress: message.completedUnits / message.totalUnits,
+              }));
+              break;
+            case "stems-ready": {
+              const newStems: StemResult[] = message.stems.map((stem) => ({
+                name: stem.name,
+                wavUrl: URL.createObjectURL(
+                  encodeWavStereo(stem.left, stem.right, MODEL_SAMPLE_RATE),
+                ),
+              }));
+              setState((previous) => ({
+                ...previous,
+                stems: [...previous.stems, ...newStems].sort(
+                  (a, b) =>
+                    stemOrder.indexOf(a.name) - stemOrder.indexOf(b.name),
+                ),
+              }));
+              break;
+            }
+            case "done":
+              setState((previous) => ({
+                ...previous,
+                phase: "done",
+                progress: 1,
+              }));
+              break;
+            case "webgpu-device-lost":
+              // The GPU was reset mid-run and the worker's runtime is wedged.
+              // Replace the worker and redo the whole run on the CPU backend;
+              // also remember so future runs skip the doomed GPU attempt.
+              rememberWebGpuUnusable();
+              worker.terminate();
+              workerRef.current = null;
+              setState((previous) => ({
+                ...previous,
+                backend: "wasm",
+                phase: "decoding",
+                progress: 0,
+              }));
+              void startRun(true);
+              break;
+            case "error":
+              setState((previous) => ({
+                ...previous,
+                phase: "error",
+                errorMessage: message.message,
+              }));
+              break;
+          }
+        };
+
+        const request: WorkerRequest = {
+          type: "separate",
+          modelId,
+          left: decoded.left,
+          right: decoded.right,
+          forceWasm,
+        };
+        worker.postMessage(request, [
+          decoded.left.buffer,
+          decoded.right.buffer,
+        ]);
       };
 
-      const request: WorkerRequest = {
-        type: "separate",
-        modelId,
-        left: decoded.left,
-        right: decoded.right,
-      };
-      worker.postMessage(request, [decoded.left.buffer, decoded.right.buffer]);
+      await startRun(isWebGpuKnownUnusable());
     },
     [releaseStemUrls],
   );
