@@ -10,23 +10,15 @@ interface StemCardProps {
   /** 0..1 separation progress for this stem (1 once its audio is ready). */
   progress: number;
   result: StemResult | null;
-  sourceFileName: string | null;
 }
 
 /**
- * One output node of the split-flow diagram. Starts as a quiet placeholder,
- * shows a percentage while its stem is being separated, and becomes a
- * player + download once the audio is ready.
+ * One output node of the split-flow diagram: a status box showing the
+ * stem's separation progress. Playback and downloads live in the track
+ * deck below the diagram (StemTracks).
  */
-export function StemCard({
-  ref,
-  stem,
-  progress,
-  result,
-  sourceFileName,
-}: StemCardProps) {
+export function StemCard({ ref, stem, progress, result }: StemCardProps) {
   const theme = STEM_THEMES[stem];
-  const baseName = sourceFileName?.replace(/\.[^.]+$/, "") ?? "track";
   const isActive = progress > 0 && !result;
 
   return (
@@ -53,24 +45,14 @@ export function StemCard({
           </span>
         )}
         {result && (
-          <a
-            href={result.wavUrl}
-            download={`${baseName} - ${stem}.wav`}
-            className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white transition-opacity hover:opacity-80"
-            style={{ backgroundColor: theme.color }}
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: theme.color }}
           >
-            Download
-          </a>
+            Ready
+          </span>
         )}
       </div>
-      {result && (
-        <audio
-          controls
-          src={result.wavUrl}
-          className="mt-2 h-9 w-full"
-          preload="metadata"
-        />
-      )}
     </div>
   );
 }

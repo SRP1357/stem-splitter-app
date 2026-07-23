@@ -23,3 +23,9 @@ export const STEM_THEMES: Record<StemName, StemTheme> = {
 
 /** Neutral stroke for paths that have not received any progress yet. */
 export const IDLE_PATH_COLOR = "#94a3b8"; // slate-400
+
+/** Resolution of the precomputed waveform (bars per track lane). */
+export const WAVEFORM_BUCKETS = 600;
+
+/** Waveform bar color for the not-yet-played portion of a track. */
+export const WAVEFORM_IDLE_COLOR = "#cbd5e1"; // slate-300

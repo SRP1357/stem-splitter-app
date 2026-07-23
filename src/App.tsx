@@ -2,7 +2,8 @@ import { useState } from "react";
 
 import { ModelPicker } from "./components/ModelPicker";
 import { SplitFlow } from "./components/SplitFlow";
-import { DEFAULT_MODEL_VARIANT_ID } from "./config/constants";
+import { StemTracks } from "./components/StemTracks";
+import { DEFAULT_MODEL_VARIANT_ID, MODEL_VARIANTS } from "./config/constants";
 import type { ModelVariantId } from "./config/constants";
 import { useStemSeparation } from "./hooks/useStemSeparation";
 
@@ -42,6 +43,14 @@ export default function App() {
         onFileSelected={(file) => {
           void separate(file, selectedModel);
         }}
+      />
+
+      <StemTracks
+        stemNames={
+          MODEL_VARIANTS[state.modelId ?? selectedModel].stemNames
+        }
+        results={state.stems}
+        sourceFileName={state.fileName}
       />
 
       {state.phase === "error" && (

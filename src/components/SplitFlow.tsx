@@ -195,7 +195,6 @@ export function SplitFlow({
             stem={stem}
             progress={stemProgress(state, stem)}
             result={state.stems.find((result) => result.name === stem) ?? null}
-            sourceFileName={state.fileName}
           />
         ))}
       </div>

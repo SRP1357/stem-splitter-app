@@ -6,6 +6,7 @@ import {
   MODEL_VARIANTS,
 } from "../config/constants";
 import type { ModelVariantId, StemName } from "../config/constants";
+import { WAVEFORM_BUCKETS } from "../config/theme";
 import { decodeAudioFile } from "../lib/audio/decode";
 import { encodeWavStereo } from "../lib/audio/wavEncoder";
 import type {
@@ -21,6 +22,39 @@ export interface StemResult {
   name: StemName;
   /** Object URL for an encoded WAV blob, usable in <audio> and downloads. */
   wavUrl: string;
+  /**
+   * Peak amplitude (0..1, normalised per stem) for each of WAVEFORM_BUCKETS
+   * equal slices of the track, precomputed for waveform rendering.
+   */
+  peaks: Float32Array;
+  durationSeconds: number;
+}
+
+/** Max |sample| across both channels for each equal slice of the track. */
+function computePeaks(left: Float32Array, right: Float32Array): Float32Array {
+  const peaks = new Float32Array(WAVEFORM_BUCKETS);
+  const samplesPerBucket = left.length / WAVEFORM_BUCKETS;
+  let overallMax = 0;
+  for (let bucket = 0; bucket < WAVEFORM_BUCKETS; bucket++) {
+    const start = Math.floor(bucket * samplesPerBucket);
+    const end = Math.min(
+      left.length,
+      Math.floor((bucket + 1) * samplesPerBucket),
+    );
+    let max = 0;
+    for (let i = start; i < end; i++) {
+      const value = Math.max(Math.abs(left[i]), Math.abs(right[i]));
+      if (value > max) max = value;
+    }
+    peaks[bucket] = max;
+    if (max > overallMax) overallMax = max;
+  }
+  if (overallMax > 0) {
+    for (let bucket = 0; bucket < WAVEFORM_BUCKETS; bucket++) {
+      peaks[bucket] /= overallMax;
+    }
+  }
+  return peaks;
 }
 
 export interface SeparationState {
@@ -155,13 +189,15 @@ export function useStemSeparation() {
                 progress: message.completedUnits / message.totalUnits,
               }));
               break;
-            case "stems-ready": {
-              const newStems: StemResult[] = message.stems.map((stem) => ({
-                name: stem.name,
-                wavUrl: URL.createObjectURL(
-                  encodeWavStereo(stem.left, stem.right, MODEL_SAMPLE_RATE),
-                ),
-              }));
+          case "stems-ready": {
+            const newStems: StemResult[] = message.stems.map((stem) => ({
+              name: stem.name,
+              wavUrl: URL.createObjectURL(
+                encodeWavStereo(stem.left, stem.right, MODEL_SAMPLE_RATE),
+              ),
+              peaks: computePeaks(stem.left, stem.right),
+              durationSeconds: stem.left.length / MODEL_SAMPLE_RATE,
+            }));
               setState((previous) => ({
                 ...previous,
                 stems: [...previous.stems, ...newStems].sort(
