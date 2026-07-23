@@ -16,6 +16,11 @@ export default defineConfig({
     // own module URL; Vite's dependency pre-bundling breaks that lookup.
     exclude: ["onnxruntime-web"],
   },
+  // Note: the production bundle also emits a copy of the ONNX Runtime .wasm
+  // under dist/assets/ (Rollup resolves ORT's internal `new URL(...)`
+  // reference). It is never fetched at runtime — ort.env.wasm.wasmPaths
+  // points at the first-party copies in public/ort/ — it just inflates the
+  // deploy artifact slightly.
   server: {
     // Cross-origin isolation enables SharedArrayBuffer, which onnxruntime-web
     // needs for multi-threaded WASM inference. In production (GitHub Pages

@@ -61,12 +61,18 @@ interface CreatedSession {
 }
 
 /**
+ * Remembers a failed WebGPU attempt so multi-file variants (the fine-tuned
+ * bag creates four sessions) don't pay the failure cost repeatedly.
+ */
+let webGpuKnownUnusable = false;
+
+/**
  * Creates a session preferring WebGPU, falling back to (multi-threaded)
  * WASM. Trying the providers separately lets us report which backend
  * actually ended up running.
  */
 async function createSession(modelBytes: Uint8Array): Promise<CreatedSession> {
-  const supportsWebGpu = "gpu" in self.navigator;
+  const supportsWebGpu = "gpu" in self.navigator && !webGpuKnownUnusable;
   if (supportsWebGpu) {
     try {
       const session = await ort.InferenceSession.create(modelBytes, {
@@ -76,6 +82,7 @@ async function createSession(modelBytes: Uint8Array): Promise<CreatedSession> {
     } catch {
       // Fall through to WASM: WebGPU may be present but unusable
       // (unsupported ops, driver issues, ...).
+      webGpuKnownUnusable = true;
     }
   }
   const session = await ort.InferenceSession.create(modelBytes, {

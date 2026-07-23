@@ -23,13 +23,25 @@ export function FileDropZone({ disabled, onFileSelected }: FileDropZoneProps) {
   );
 
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => inputRef.current?.click()}
+    // The drop target is a div rather than a button: disabled buttons swallow
+    // drag events in some browsers, and a file input must not be nested
+    // inside another interactive element.
+    <div
+      role="button"
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
+      onClick={() => {
+        if (!disabled) inputRef.current?.click();
+      }}
+      onKeyDown={(event) => {
+        if (!disabled && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
       onDragOver={(event) => {
         event.preventDefault();
-        setIsDragActive(true);
+        if (!disabled) setIsDragActive(true);
       }}
       onDragLeave={() => setIsDragActive(false)}
       onDrop={handleDrop}
@@ -49,6 +61,7 @@ export function FileDropZone({ disabled, onFileSelected }: FileDropZoneProps) {
         ref={inputRef}
         type="file"
         accept="audio/*"
+        disabled={disabled}
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.item(0);
@@ -56,6 +69,6 @@ export function FileDropZone({ disabled, onFileSelected }: FileDropZoneProps) {
           event.target.value = "";
         }}
       />
-    </button>
+    </div>
   );
 }
