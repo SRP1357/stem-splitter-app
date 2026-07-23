@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { MODEL_SAMPLE_RATE } from "../config/constants";
+import {
+  MODEL_SAMPLE_RATE,
+  MODEL_VARIANTS,
+} from "../config/constants";
+import type { ModelVariantId, StemName } from "../config/constants";
 import { decodeAudioFile } from "../lib/audio/decode";
 import { encodeWavStereo } from "../lib/audio/wavEncoder";
 import type {
@@ -8,7 +12,6 @@ import type {
   WorkerRequest,
   WorkerResponse,
 } from "../types/messages";
-import type { StemName } from "../config/constants";
 
 export type SeparationPhase =
   | "idle"
@@ -28,8 +31,13 @@ export interface SeparationState {
   phase: SeparationPhase;
   /** 0..1 progress of the current phase (model download or separation). */
   progress: number;
+  /** 1-based position within the variant's model files, for multi-file variants. */
+  currentFile: number;
+  fileCount: number;
   backend: InferenceBackend | null;
+  modelId: ModelVariantId | null;
   fileName: string | null;
+  /** Grows incrementally: specialist stems appear as soon as they finish. */
   stems: StemResult[];
   errorMessage: string | null;
 }
@@ -37,7 +45,10 @@ export interface SeparationState {
 const INITIAL_STATE: SeparationState = {
   phase: "idle",
   progress: 0,
+  currentFile: 1,
+  fileCount: 1,
   backend: null,
+  modelId: null,
   fileName: null,
   stems: [],
   errorMessage: null,
@@ -45,7 +56,8 @@ const INITIAL_STATE: SeparationState = {
 
 /**
  * Owns the separation worker and exposes the pipeline as simple React state:
- * hand it a File, get phases, progress and finished stems back.
+ * hand it a File and a model variant, get phases, progress and finished
+ * stems back (streamed in as each model file completes).
  */
 export function useStemSeparation() {
   const workerRef = useRef<Worker | null>(null);
@@ -62,13 +74,15 @@ export function useStemSeparation() {
   }, []);
 
   const separate = useCallback(
-    async (file: File) => {
+    async (file: File, modelId: ModelVariantId) => {
       setState((previous) => {
         releaseStemUrls(previous.stems);
         return {
           ...INITIAL_STATE,
           phase: "decoding",
           fileName: file.name,
+          modelId,
+          fileCount: MODEL_VARIANTS[modelId].files.length,
         };
       });
 
@@ -90,6 +104,7 @@ export function useStemSeparation() {
         { type: "module" },
       );
       const worker = workerRef.current;
+      const stemOrder = MODEL_VARIANTS[modelId].stemNames;
 
       worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
         const message = event.data;
@@ -98,6 +113,8 @@ export function useStemSeparation() {
             setState((previous) => ({
               ...previous,
               phase: "downloading-model",
+              currentFile: message.fileIndex + 1,
+              fileCount: message.fileCount,
               progress:
                 message.totalBytes > 0
                   ? message.loadedBytes / message.totalBytes
@@ -116,11 +133,13 @@ export function useStemSeparation() {
             setState((previous) => ({
               ...previous,
               phase: "separating",
-              progress: message.completedChunks / message.totalChunks,
+              currentFile: message.passIndex + 1,
+              fileCount: message.passCount,
+              progress: message.completedUnits / message.totalUnits,
             }));
             break;
-          case "done": {
-            const stems: StemResult[] = message.stems.map((stem) => ({
+          case "stems-ready": {
+            const newStems: StemResult[] = message.stems.map((stem) => ({
               name: stem.name,
               wavUrl: URL.createObjectURL(
                 encodeWavStereo(stem.left, stem.right, MODEL_SAMPLE_RATE),
@@ -128,12 +147,19 @@ export function useStemSeparation() {
             }));
             setState((previous) => ({
               ...previous,
-              phase: "done",
-              progress: 1,
-              stems,
+              stems: [...previous.stems, ...newStems].sort(
+                (a, b) => stemOrder.indexOf(a.name) - stemOrder.indexOf(b.name),
+              ),
             }));
             break;
           }
+          case "done":
+            setState((previous) => ({
+              ...previous,
+              phase: "done",
+              progress: 1,
+            }));
+            break;
           case "error":
             setState((previous) => ({
               ...previous,
@@ -146,13 +172,11 @@ export function useStemSeparation() {
 
       const request: WorkerRequest = {
         type: "separate",
+        modelId,
         left: decoded.left,
         right: decoded.right,
       };
-      worker.postMessage(request, [
-        decoded.left.buffer,
-        decoded.right.buffer,
-      ]);
+      worker.postMessage(request, [decoded.left.buffer, decoded.right.buffer]);
     },
     [releaseStemUrls],
   );

@@ -16,12 +16,21 @@ identical in both).
 ## How it works
 
 1. Your audio file is decoded to stereo 44.1 kHz PCM with the Web Audio API.
-2. A Web Worker downloads the ONNX model (~166 MB, once — cached afterwards)
-   and creates an ONNX Runtime session, preferring WebGPU over WASM.
+2. A Web Worker downloads the selected ONNX model files (once — cached via
+   the Cache API afterwards) and creates an ONNX Runtime session, preferring
+   WebGPU over multi-threaded WASM.
 3. The track is processed in overlapping 7.8-second windows (the segment
-   length is baked into the exported graph) and blended back together with a
+   length is baked into the exported graphs) and blended back together with a
    triangular cross-fade (overlap-add).
 4. Each stem is encoded to 16-bit WAV for preview and download.
+
+### Model variants
+
+| Variant | Stems | Files | Notes |
+| --- | --- | --- | --- |
+| Standard (`htdemucs`) | 4 | 1 × 158 MB | Default; fastest |
+| Highest quality (`htdemucs_ft`) | 4 | 4 × 158 MB | Fine-tuned specialist per stem; ~4× slower. Processed one specialist at a time — stems appear as they finish |
+| 6 stems (`htdemucs_6s`) | 6 | 1 × 130 MB | Adds guitar + piano; experimental |
 
 ## Development
 

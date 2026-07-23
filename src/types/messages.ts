@@ -1,4 +1,4 @@
-import type { StemName } from "../config/constants";
+import type { ModelVariantId, StemName } from "../config/constants";
 
 /** One separated stem: stereo PCM at the model sample rate. */
 export interface SeparatedStem {
@@ -13,14 +13,29 @@ export type InferenceBackend = "webgpu" | "wasm";
 /** Messages the main thread sends to the separation worker. */
 export type WorkerRequest = {
   type: "separate";
+  modelId: ModelVariantId;
   left: Float32Array;
   right: Float32Array;
 };
 
 /** Messages the separation worker sends back to the main thread. */
 export type WorkerResponse =
-  | { type: "model-download-progress"; loadedBytes: number; totalBytes: number }
+  | {
+      type: "model-download-progress";
+      fileIndex: number;
+      fileCount: number;
+      loadedBytes: number;
+      totalBytes: number;
+    }
   | { type: "backend-selected"; backend: InferenceBackend }
-  | { type: "separation-progress"; completedChunks: number; totalChunks: number }
-  | { type: "done"; stems: SeparatedStem[] }
+  | {
+      type: "separation-progress";
+      completedUnits: number;
+      totalUnits: number;
+      passIndex: number;
+      passCount: number;
+    }
+  /** Emitted as soon as one model file's stems are fully separated. */
+  | { type: "stems-ready"; stems: SeparatedStem[] }
+  | { type: "done" }
   | { type: "error"; message: string };
