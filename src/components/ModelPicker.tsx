@@ -35,13 +35,13 @@ export function ModelPicker({
               onChange={() => onSelect(variant.id)}
               className="sr-only"
             />
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-900">
+            <span className="text-sm font-semibold uppercase tracking-wider text-slate-900">
               {variant.label}
             </span>
-            <span className="text-[11px] leading-relaxed text-slate-500">
+            <span className="text-xs leading-relaxed text-slate-600">
               {variant.description}
             </span>
-            <span className="mt-1 text-[11px] text-slate-400">
+            <span className="mt-1 text-xs text-slate-500">
               ~{variant.approximateDownloadMb} MB · one-time download
             </span>
           </label>

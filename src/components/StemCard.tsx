@@ -31,7 +31,7 @@ export function StemCard({ ref, stem, progress, result }: StemCardProps) {
       }}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-800">
+        <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-800">
           <span
             aria-hidden="true"
             className="inline-block h-2 w-2"
@@ -40,13 +40,13 @@ export function StemCard({ ref, stem, progress, result }: StemCardProps) {
           {stem}
         </span>
         {isActive && (
-          <span className="text-[11px] tabular-nums text-slate-400">
+          <span className="text-xs tabular-nums text-slate-500">
             {Math.round(progress * 100)}%
           </span>
         )}
         {result && (
           <span
-            className="text-[11px] font-semibold uppercase tracking-wider"
+            className="text-xs font-semibold uppercase tracking-wider"
             style={{ color: theme.color }}
           >
             Ready

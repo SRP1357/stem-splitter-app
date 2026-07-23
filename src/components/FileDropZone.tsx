@@ -85,9 +85,9 @@ export function FileDropZone({
           <p className="truncate text-sm font-medium text-slate-900">
             {state.fileName}
           </p>
-          {status && <p className="mt-2 text-xs text-slate-500">{status}</p>}
+          {status && <p className="mt-2 text-sm text-slate-600">{status}</p>}
           {state.backend && state.phase === "separating" && (
-            <p className="mt-2 text-[11px] text-slate-400">
+            <p className="mt-2 text-xs text-slate-500">
               Running on{" "}
               {state.backend === "webgpu" ? "GPU (WebGPU)" : "CPU (WASM)"}
               {state.backend === "wasm" && " — hang tight on long tracks"}
@@ -96,10 +96,10 @@ export function FileDropZone({
         </>
       ) : (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-900">
+          <p className="text-sm font-semibold uppercase tracking-wider text-slate-900">
             Drop an audio file here
           </p>
-          <p className="mt-2 text-[11px] text-slate-400">
+          <p className="mt-2 text-xs text-slate-500">
             or click to browse — mp3, wav, flac, m4a, ogg
           </p>
         </>

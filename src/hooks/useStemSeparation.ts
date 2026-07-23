@@ -57,6 +57,17 @@ function computePeaks(left: Float32Array, right: Float32Array): Float32Array {
   return peaks;
 }
 
+export type LogTone = "info" | "warn" | "error";
+
+/** One line in the activity log ("terminal") strip. */
+export interface LogEntry {
+  id: number;
+  /** Wall-clock HH:MM:SS when the event happened. */
+  time: string;
+  text: string;
+  tone: LogTone;
+}
+
 export interface SeparationState {
   phase: SeparationPhase;
   /** 0..1 progress of the current phase (model download or separation). */
@@ -70,7 +81,15 @@ export interface SeparationState {
   /** Grows incrementally: specialist stems appear as soon as they finish. */
   stems: StemResult[];
   errorMessage: string | null;
+  /** Rolling activity log; newest entry last. */
+  log: LogEntry[];
 }
+
+/** Keep the log bounded; only the visible tail matters anyway. */
+const MAX_LOG_ENTRIES = 50;
+
+/** Log separation progress only when it crosses another 10% boundary. */
+const LOG_PROGRESS_STEP = 0.1;
 
 /** localStorage can throw (e.g. blocked storage); treat that as "not set". */
 function isWebGpuKnownUnusable(): boolean {
@@ -99,6 +118,14 @@ const INITIAL_STATE: SeparationState = {
   fileName: null,
   stems: [],
   errorMessage: null,
+  log: [
+    {
+      id: 0,
+      time: new Date().toTimeString().slice(0, 8),
+      text: "system ready — drop an audio file to begin",
+      tone: "info",
+    },
+  ],
 };
 
 /**
@@ -109,6 +136,20 @@ const INITIAL_STATE: SeparationState = {
 export function useStemSeparation() {
   const workerRef = useRef<Worker | null>(null);
   const [state, setState] = useState<SeparationState>(INITIAL_STATE);
+  const nextLogId = useRef(1);
+
+  const pushLog = useCallback((text: string, tone: LogTone = "info") => {
+    const entry: LogEntry = {
+      id: nextLogId.current++,
+      time: new Date().toTimeString().slice(0, 8),
+      text,
+      tone,
+    };
+    setState((previous) => ({
+      ...previous,
+      log: [...previous.log, entry].slice(-MAX_LOG_ENTRIES),
+    }));
+  }, []);
 
   const releaseStemUrls = useCallback((stems: StemResult[]) => {
     for (const stem of stems) URL.revokeObjectURL(stem.wavUrl);
@@ -130,10 +171,22 @@ export function useStemSeparation() {
           fileName: file.name,
           modelId,
           fileCount: MODEL_VARIANTS[modelId].files.length,
+          log: previous.log, // the terminal keeps scrolling across runs
         };
       });
 
-      const stemOrder = MODEL_VARIANTS[modelId].stemNames;
+      const variant = MODEL_VARIANTS[modelId];
+      const stemOrder = variant.stemNames;
+      pushLog(`load: ${file.name} · mode: ${variant.label.toLowerCase()}`);
+      pushLog("decoding audio…");
+
+      // Run-scoped dedupe so progress logs fire once per milestone.
+      const runLog = {
+        announcedFetches: new Set<number>(),
+        finishedFetches: new Set<number>(),
+        announcedPasses: new Set<number>(),
+        lastProgressStep: 0,
+      };
 
       // Decoded buffers are transferred to the worker, so a restart (after
       // a GPU device loss) has to decode the file again.
@@ -141,7 +194,12 @@ export function useStemSeparation() {
         let decoded;
         try {
           decoded = await decodeAudioFile(file);
+          const seconds = decoded.left.length / MODEL_SAMPLE_RATE;
+          pushLog(
+            `decoded ${seconds.toFixed(1)}s stereo pcm @ ${MODEL_SAMPLE_RATE / 1000} kHz`,
+          );
         } catch {
+          pushLog("decode failed — unsupported or corrupted file", "error");
           setState((previous) => ({
             ...previous,
             phase: "error",
@@ -160,19 +218,37 @@ export function useStemSeparation() {
         worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
           const message = event.data;
           switch (message.type) {
-            case "model-download-progress":
+            case "model-download-progress": {
+              const { fileIndex, fileCount, loadedBytes, totalBytes } = message;
+              if (!runLog.announcedFetches.has(fileIndex)) {
+                runLog.announcedFetches.add(fileIndex);
+                pushLog(`fetching model ${fileIndex + 1}/${fileCount}…`);
+              }
+              if (
+                totalBytes > 0 &&
+                loadedBytes >= totalBytes &&
+                !runLog.finishedFetches.has(fileIndex)
+              ) {
+                runLog.finishedFetches.add(fileIndex);
+                pushLog(
+                  `model ${fileIndex + 1}/${fileCount} ready (${Math.round(totalBytes / 1024 / 1024)} MB, cached)`,
+                );
+              }
               setState((previous) => ({
                 ...previous,
                 phase: "downloading-model",
-                currentFile: message.fileIndex + 1,
-                fileCount: message.fileCount,
-                progress:
-                  message.totalBytes > 0
-                    ? message.loadedBytes / message.totalBytes
-                    : 0,
+                currentFile: fileIndex + 1,
+                fileCount,
+                progress: totalBytes > 0 ? loadedBytes / totalBytes : 0,
               }));
               break;
+            }
             case "backend-selected":
+              pushLog(
+                message.backend === "webgpu"
+                  ? "backend: webgpu — gpu acceleration active"
+                  : "backend: wasm — running on cpu (multithreaded)",
+              );
               setState((previous) => ({
                 ...previous,
                 backend: message.backend,
@@ -180,15 +256,33 @@ export function useStemSeparation() {
                 progress: 0,
               }));
               break;
-            case "separation-progress":
+            case "separation-progress": {
+              const progress = message.completedUnits / message.totalUnits;
+              if (
+                message.passCount > 1 &&
+                !runLog.announcedPasses.has(message.passIndex)
+              ) {
+                runLog.announcedPasses.add(message.passIndex);
+                pushLog(
+                  `processing model ${message.passIndex + 1}/${message.passCount}…`,
+                );
+              }
+              const step = Math.floor(progress / LOG_PROGRESS_STEP);
+              if (step > runLog.lastProgressStep && progress < 1) {
+                runLog.lastProgressStep = step;
+                pushLog(
+                  `separating… ${Math.round(step * LOG_PROGRESS_STEP * 100)}%`,
+                );
+              }
               setState((previous) => ({
                 ...previous,
                 phase: "separating",
                 currentFile: message.passIndex + 1,
                 fileCount: message.passCount,
-                progress: message.completedUnits / message.totalUnits,
+                progress,
               }));
               break;
+            }
           case "stems-ready": {
             const newStems: StemResult[] = message.stems.map((stem) => ({
               name: stem.name,
@@ -198,6 +292,9 @@ export function useStemSeparation() {
               peaks: computePeaks(stem.left, stem.right),
               durationSeconds: stem.left.length / MODEL_SAMPLE_RATE,
             }));
+            pushLog(
+              `stems ready: ${newStems.map((stem) => stem.name).join(", ")}`,
+            );
               setState((previous) => ({
                 ...previous,
                 stems: [...previous.stems, ...newStems].sort(
@@ -208,6 +305,7 @@ export function useStemSeparation() {
               break;
             }
             case "done":
+              pushLog("complete ✓ all stems separated");
               setState((previous) => ({
                 ...previous,
                 phase: "done",
@@ -218,9 +316,15 @@ export function useStemSeparation() {
               // The GPU was reset mid-run and the worker's runtime is wedged.
               // Replace the worker and redo the whole run on the CPU backend;
               // also remember so future runs skip the doomed GPU attempt.
+              pushLog(
+                "gpu device lost — restarting on cpu (this device will skip gpu from now on)",
+                "warn",
+              );
               rememberWebGpuUnusable();
               worker.terminate();
               workerRef.current = null;
+              runLog.lastProgressStep = 0;
+              runLog.announcedPasses.clear();
               setState((previous) => ({
                 ...previous,
                 backend: "wasm",
@@ -230,6 +334,7 @@ export function useStemSeparation() {
               void startRun(true);
               break;
             case "error":
+              pushLog(`error: ${message.message}`, "error");
               setState((previous) => ({
                 ...previous,
                 phase: "error",
@@ -254,7 +359,7 @@ export function useStemSeparation() {
 
       await startRun(isWebGpuKnownUnusable());
     },
-    [releaseStemUrls],
+    [releaseStemUrls, pushLog],
   );
 
   return { state, separate };
