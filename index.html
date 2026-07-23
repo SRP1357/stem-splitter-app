@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Split any song into drums, bass, vocals and more — entirely in your browser. No uploads, no servers, your audio never leaves your device."
+    />
+    <title>Stem Splitter</title>
+    <!--
+      coi-serviceworker injects the COOP/COEP headers that GitHub Pages cannot
+      set, enabling SharedArrayBuffer for multi-threaded WASM inference.
+      It must load before the application module.
+    -->
+    <!-- Relative path: resolves against the site's base URL in both dev and production. -->
+    <script src="coi-serviceworker.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

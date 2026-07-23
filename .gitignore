@@ -1,0 +1,22 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Model files are far too large for git (GitHub rejects files > 100 MB).
+# They are published as GitHub Release assets instead; see README.md.
+models/
+
+# Runtime assets copied from node_modules by scripts/copy-runtime-assets.mjs
+public/ort/
+public/coi-serviceworker.min.js
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*

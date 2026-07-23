@@ -1,0 +1,29 @@
+{
+  "name": "stem-splitter-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run copy:runtime-assets && vite",
+    "build": "npm run copy:runtime-assets && tsc && vite build",
+    "preview": "vite preview",
+    "copy:runtime-assets": "node scripts/copy-runtime-assets.mjs",
+    "download:models": "node scripts/download-models.mjs"
+  },
+  "dependencies": {
+    "coi-serviceworker": "^0.1.7",
+    "onnxruntime-web": "^1.27.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  }
+}
