@@ -123,10 +123,20 @@ export function SplitFlow({
 
   useLayoutEffect(() => {
     measure();
+    // Observe every node, not just the container: selecting a file changes
+    // the drop zone's content (and height) without necessarily resizing the
+    // container, and stale anchors leave the connectors floating.
     const observer = new ResizeObserver(measure);
     if (containerRef.current) observer.observe(containerRef.current);
+    if (sourceRef.current) observer.observe(sourceRef.current);
+    for (const node of stemRefs.current.values()) observer.observe(node);
     return () => observer.disconnect();
   }, [measure]);
+
+  // Belt and braces for content swaps that keep identical box sizes.
+  const fileName = state.fileName;
+  const phase = state.phase;
+  useLayoutEffect(measure, [measure, fileName, phase]);
 
   const isSeparating = state.phase === "separating";
 

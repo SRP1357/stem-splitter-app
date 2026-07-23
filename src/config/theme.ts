@@ -29,3 +29,9 @@ export const WAVEFORM_BUCKETS = 600;
 
 /** Waveform bar color for the not-yet-played portion of a track. */
 export const WAVEFORM_IDLE_COLOR = "#cbd5e1"; // slate-300
+
+/**
+ * Hex alpha suffix for the unplayed portion of a finished waveform: the
+ * stem's color at ~35% opacity, so the played portion clearly stands out.
+ */
+export const WAVEFORM_UNPLAYED_ALPHA = "59";

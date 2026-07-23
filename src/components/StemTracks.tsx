@@ -2,16 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 
 import type { StemName } from "../config/constants";
-import { STEM_THEMES, WAVEFORM_IDLE_COLOR } from "../config/theme";
+import {
+  STEM_THEMES,
+  WAVEFORM_IDLE_COLOR,
+  WAVEFORM_UNPLAYED_ALPHA,
+} from "../config/theme";
 import { encodeWavUrlToMp3 } from "../lib/audio/mp3";
 import type { StemResult } from "../hooks/useStemSeparation";
-
-function triggerDownload(url: string, fileName: string): void {
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-}
 
 interface StemTracksProps {
   stemNames: readonly StemName[];
@@ -60,7 +57,8 @@ function drawWaveform(
   canvas: HTMLCanvasElement,
   peaks: Float32Array | null,
   playedFraction: number,
-  color: string,
+  playedColor: string,
+  unplayedColor: string,
 ): void {
   const context = canvas.getContext("2d");
   if (!context) return;
@@ -88,7 +86,7 @@ function drawWaveform(
   const playedBars = playedFraction * peaks.length;
   for (let i = 0; i < peaks.length; i++) {
     const barHeight = Math.max(1, peaks[i] * height * WAVEFORM_VERTICAL_FILL);
-    context.fillStyle = i < playedBars ? color : WAVEFORM_IDLE_COLOR;
+    context.fillStyle = i < playedBars ? playedColor : unplayedColor;
     context.fillRect(i * slot, center - barHeight / 2, barWidth, barHeight);
   }
 }
@@ -108,41 +106,49 @@ function TrackLane({ stem, result, sourceFileName }: TrackLaneProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playedFraction, setPlayedFraction] = useState(0);
   const [currentSeconds, setCurrentSeconds] = useState(0);
-  const [isEncodingMp3, setIsEncodingMp3] = useState(false);
-  const mp3UrlRef = useRef<string | null>(null);
+  const [mp3Url, setMp3Url] = useState<string | null>(null);
 
-  // New separation run for the same stem: reset playback and encoded MP3.
+  // New separation run for the same stem: reset playback state.
   const wavUrl = result?.wavUrl ?? null;
   useEffect(() => {
     setIsPlaying(false);
     setPlayedFraction(0);
     setCurrentSeconds(0);
-    return () => {
-      if (mp3UrlRef.current) {
-        URL.revokeObjectURL(mp3UrlRef.current);
-        mp3UrlRef.current = null;
-      }
-    };
   }, [wavUrl]);
 
-  const downloadMp3 = async () => {
-    if (!result || isEncodingMp3) return;
-    if (!mp3UrlRef.current) {
-      setIsEncodingMp3(true);
-      try {
-        const blob = await encodeWavUrlToMp3(result.wavUrl);
-        mp3UrlRef.current = URL.createObjectURL(blob);
-      } finally {
-        setIsEncodingMp3(false);
-      }
-    }
-    triggerDownload(mp3UrlRef.current, `${baseName} - ${stem}.mp3`);
-  };
+  // Encode the MP3 as soon as the stem lands so the button downloads
+  // instantly. The shared encoder worker serialises requests, so multiple
+  // stems arriving together queue up rather than competing.
+  useEffect(() => {
+    if (!wavUrl) return;
+    let cancelled = false;
+    let url: string | null = null;
+    encodeWavUrlToMp3(wavUrl)
+      .then((blob) => {
+        url = URL.createObjectURL(blob);
+        if (!cancelled) setMp3Url(url);
+      })
+      .catch(() => {
+        // WAV remains available; the MP3 button just stays in its
+        // preparing state. Failures here are exceptional (OOM).
+      });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+      setMp3Url(null);
+    };
+  }, [wavUrl]);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      drawWaveform(canvas, result?.peaks ?? null, playedFraction, theme.color);
+      drawWaveform(
+        canvas,
+        result?.peaks ?? null,
+        playedFraction,
+        theme.color,
+        `${theme.color}${WAVEFORM_UNPLAYED_ALPHA}`,
+      );
     }
   }, [result, playedFraction, theme.color]);
 
@@ -192,8 +198,11 @@ function TrackLane({ stem, result, sourceFileName }: TrackLaneProps) {
 
   return (
     <div
-      className="flex items-center gap-3 border bg-transparent p-3 transition-colors duration-300"
-      style={{ borderColor: result ? theme.color : "#cbd5e1" /* slate-300 */ }}
+      className="flex items-center gap-3 border p-3 transition-colors duration-300"
+      style={{
+        borderColor: result ? theme.color : "#cbd5e1", // slate-300
+        backgroundColor: result ? theme.tint : "transparent",
+      }}
     >
       {result && (
         <audio
@@ -252,14 +261,24 @@ function TrackLane({ stem, result, sourceFileName }: TrackLaneProps) {
           >
             WAV
           </a>
-          <button
-            type="button"
-            onClick={() => void downloadMp3()}
-            disabled={isEncodingMp3}
-            className="border border-[var(--stem-color)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--stem-color)] transition-colors hover:bg-[var(--stem-color)] hover:text-white disabled:cursor-wait"
-          >
-            {isEncodingMp3 ? "…" : "MP3"}
-          </button>
+          {mp3Url ? (
+            <a
+              href={mp3Url}
+              download={`${baseName} - ${stem}.mp3`}
+              className="border border-[var(--stem-color)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--stem-color)] transition-colors hover:bg-[var(--stem-color)] hover:text-white"
+            >
+              MP3
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="Preparing MP3…"
+              className="cursor-wait border border-[var(--stem-color)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--stem-color)] opacity-50"
+            >
+              MP3
+            </button>
+          )}
         </span>
       )}
     </div>
