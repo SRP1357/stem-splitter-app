@@ -198,9 +198,8 @@ export function useStemSeparation() {
         let decoded;
         try {
           decoded = await decodeAudioFile(file);
-          const seconds = decoded.left.length / MODEL_SAMPLE_RATE;
           pushLog(
-            `decoded ${seconds.toFixed(1)}s stereo pcm @ ${MODEL_SAMPLE_RATE / 1000} kHz`,
+            `decoded ${decoded.durationSeconds.toFixed(1)}s stereo pcm @ ${MODEL_SAMPLE_RATE / 1000} kHz`,
           );
         } catch {
           pushLog("decode failed — unsupported or corrupted file", "error");
@@ -314,18 +313,18 @@ export function useStemSeparation() {
               }));
               break;
             }
-          case "stems-ready": {
-            const newStems: StemResult[] = message.stems.map((stem) => ({
-              name: stem.name,
-              wavUrl: URL.createObjectURL(
-                encodeWavStereo(stem.left, stem.right, MODEL_SAMPLE_RATE),
-              ),
-              peaks: computePeaks(stem.left, stem.right),
-              durationSeconds: stem.left.length / MODEL_SAMPLE_RATE,
-            }));
-            pushLog(
-              `stems ready: ${newStems.map((stem) => stem.name).join(", ")}`,
-            );
+            case "stems-ready": {
+              const newStems: StemResult[] = message.stems.map((stem) => ({
+                name: stem.name,
+                wavUrl: URL.createObjectURL(
+                  encodeWavStereo(stem.left, stem.right, MODEL_SAMPLE_RATE),
+                ),
+                peaks: computePeaks(stem.left, stem.right),
+                durationSeconds: stem.left.length / MODEL_SAMPLE_RATE,
+              }));
+              pushLog(
+                `stems ready: ${newStems.map((stem) => stem.name).join(", ")}`,
+              );
               setState((previous) => ({
                 ...previous,
                 stems: [...previous.stems, ...newStems].sort(

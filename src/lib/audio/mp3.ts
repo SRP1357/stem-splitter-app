@@ -14,17 +14,20 @@ const pending = new Map<
 >();
 
 function getWorker(): Worker {
-  worker ??= new Worker(new URL("../../workers/mp3.worker.ts", import.meta.url), {
-    type: "module",
-  });
-  worker.onmessage = (event: MessageEvent<Mp3Response>) => {
-    const { requestId, blob, error } = event.data;
-    const handlers = pending.get(requestId);
-    if (!handlers) return;
-    pending.delete(requestId);
-    if (blob) handlers.resolve(blob);
-    else handlers.reject(new Error(error ?? "MP3 encoding failed"));
-  };
+  if (!worker) {
+    worker = new Worker(
+      new URL("../../workers/mp3.worker.ts", import.meta.url),
+      { type: "module" },
+    );
+    worker.onmessage = (event: MessageEvent<Mp3Response>) => {
+      const { requestId, blob, error } = event.data;
+      const handlers = pending.get(requestId);
+      if (!handlers) return;
+      pending.delete(requestId);
+      if (blob) handlers.resolve(blob);
+      else handlers.reject(new Error(error ?? "MP3 encoding failed"));
+    };
+  }
   return worker;
 }
 
