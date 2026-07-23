@@ -201,7 +201,7 @@ function TrackLane({ stem, result, sourceFileName }: TrackLaneProps) {
       className="flex items-center gap-3 border p-3 transition-colors duration-300"
       style={{
         borderColor: result ? theme.color : "#cbd5e1", // slate-300
-        backgroundColor: result ? theme.tint : "transparent",
+        backgroundColor: theme.tint,
       }}
     >
       {result && (
