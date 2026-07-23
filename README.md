@@ -42,10 +42,21 @@ npm run build    # type-check + production build into dist/
 
 ## Model files
 
-Model binaries are far too large for git (GitHub rejects files over 100 MB),
-so they are **not** in the git tree. They are attached to the
-[`models-v1` GitHub Release](https://github.com/SRP1357/stem-splitter-app/releases/tag/models-v1)
-of this repository:
+Model binaries are far too large for the main git tree (GitHub rejects files
+over 100 MB), so they live in two places, both within this repository:
+
+1. **The [`models-v1` GitHub Release](https://github.com/SRP1357/stem-splitter-app/releases/tag/models-v1)** —
+   the archival home of every intact file (ONNX exports + original PyTorch
+   checkpoints). Browsers cannot fetch release assets directly (GitHub serves
+   them without CORS headers), so the website does not use these at runtime.
+2. **The [`model-chunks` branch](https://github.com/SRP1357/stem-splitter-app/tree/model-chunks)** —
+   the runtime ONNX files split into <100 MB chunks plus a `manifest.json`.
+   The website fetches these via `raw.githubusercontent.com`, which does
+   serve CORS headers, and reassembles them client-side
+   (`scripts/publish-model-chunks.mjs` regenerates the chunks;
+   `src/lib/model/fetchModel.ts` reassembles and caches them).
+
+Release contents:
 
 | File | Purpose |
 | --- | --- |

@@ -6,9 +6,16 @@
  * repository so the site has no third-party runtime dependencies.
  */
 
-/** All model binaries are attached to this GitHub Release of this repo. */
-const MODEL_RELEASE_BASE_URL =
-  "https://github.com/SRP1357/stem-splitter-app/releases/download/models-v1";
+/**
+ * The website downloads models from the `model-chunks` branch of this repo
+ * via raw.githubusercontent.com, which serves the CORS headers browsers
+ * require (GitHub Release downloads do not — they are kept only as the
+ * archival home of the intact files). Files there are stored as <100 MB
+ * chunks described by manifest.json; see scripts/publish-model-chunks.mjs.
+ */
+export const MODEL_CHUNKS_BASE_URL =
+  "https://raw.githubusercontent.com/SRP1357/stem-splitter-app/model-chunks";
+export const MODEL_MANIFEST_URL = `${MODEL_CHUNKS_BASE_URL}/manifest.json`;
 
 /** Cache API bucket used to persist downloaded models across visits. */
 export const MODEL_CACHE_NAME = "stem-splitter-model-cache-v1";
@@ -56,7 +63,8 @@ export type ModelVariantId = "htdemucs" | "htdemucs_ft" | "htdemucs_6s";
 
 /** One ONNX file within a variant and the output rows it contributes. */
 export interface ModelFileSpec {
-  url: string;
+  /** File name within the `model-chunks` branch manifest. */
+  fileName: string;
   /**
    * Indices into the file's output tensor rows that this file contributes to
    * the final result. The fine-tuned specialists emit all four rows but only
@@ -86,10 +94,7 @@ export const MODEL_VARIANTS: Record<ModelVariantId, ModelVariantSpec> = {
     description: "4 stems, single model — the fastest option.",
     stemNames: FOUR_STEM_NAMES,
     files: [
-      {
-        url: `${MODEL_RELEASE_BASE_URL}/htdemucs_fp16weights.onnx`,
-        outputRows: ALL_FOUR_ROWS,
-      },
+      { fileName: "htdemucs_fp16weights.onnx", outputRows: ALL_FOUR_ROWS },
     ],
     approximateDownloadMb: 158,
   },
@@ -100,22 +105,10 @@ export const MODEL_VARIANTS: Record<ModelVariantId, ModelVariantSpec> = {
       "4 stems from four fine-tuned specialist models — best results, roughly 4× slower.",
     stemNames: FOUR_STEM_NAMES,
     files: [
-      {
-        url: `${MODEL_RELEASE_BASE_URL}/htdemucs_ft_drums_fp16weights.onnx`,
-        outputRows: [0],
-      },
-      {
-        url: `${MODEL_RELEASE_BASE_URL}/htdemucs_ft_bass_fp16weights.onnx`,
-        outputRows: [1],
-      },
-      {
-        url: `${MODEL_RELEASE_BASE_URL}/htdemucs_ft_other_fp16weights.onnx`,
-        outputRows: [2],
-      },
-      {
-        url: `${MODEL_RELEASE_BASE_URL}/htdemucs_ft_vocals_fp16weights.onnx`,
-        outputRows: [3],
-      },
+      { fileName: "htdemucs_ft_drums_fp16weights.onnx", outputRows: [0] },
+      { fileName: "htdemucs_ft_bass_fp16weights.onnx", outputRows: [1] },
+      { fileName: "htdemucs_ft_other_fp16weights.onnx", outputRows: [2] },
+      { fileName: "htdemucs_ft_vocals_fp16weights.onnx", outputRows: [3] },
     ],
     approximateDownloadMb: 632,
   },
@@ -127,7 +120,7 @@ export const MODEL_VARIANTS: Record<ModelVariantId, ModelVariantSpec> = {
     stemNames: SIX_STEM_NAMES,
     files: [
       {
-        url: `${MODEL_RELEASE_BASE_URL}/htdemucs_6s_fp16weights.onnx`,
+        fileName: "htdemucs_6s_fp16weights.onnx",
         outputRows: [0, 1, 2, 3, 4, 5],
       },
     ],

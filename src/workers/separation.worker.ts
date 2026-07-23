@@ -134,7 +134,7 @@ async function separate(
     const file = variant.files[fileIndex];
 
     const modelBytes = await fetchModelWithCache(
-      file.url,
+      file.fileName,
       (loadedBytes, totalBytes) =>
         post({
           type: "model-download-progress",

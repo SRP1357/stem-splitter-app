@@ -8,7 +8,8 @@
     "build": "npm run copy:runtime-assets && tsc && vite build",
     "preview": "vite preview",
     "copy:runtime-assets": "node scripts/copy-runtime-assets.mjs",
-    "download:models": "node scripts/download-models.mjs"
+    "download:models": "node scripts/download-models.mjs",
+    "chunk:models": "node scripts/publish-model-chunks.mjs"
   },
   "dependencies": {
     "coi-serviceworker": "^0.1.7",
