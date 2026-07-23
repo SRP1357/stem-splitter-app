@@ -43,7 +43,7 @@ export function ActivityLog({ entries, busy }: ActivityLogProps) {
       <div
         ref={scrollRef}
         aria-live="polite"
-        className="h-[4.25rem] overflow-hidden px-3 py-1.5"
+        className="h-[4.5rem] overflow-hidden px-3 py-1.5"
       >
         <div className="flex min-h-full flex-col justify-end">
           {entries.map((entry) => (
