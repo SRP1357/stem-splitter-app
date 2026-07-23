@@ -67,6 +67,18 @@ interface CreatedSession {
 let webGpuKnownUnusable = false;
 
 /**
+ * Graph optimization must stay off for these models. The Demucs exports
+ * store their weights as fp16 initializers followed by Cast-to-fp32 nodes;
+ * ONNX Runtime's optimizer (at every level, including "basic")
+ * constant-folds those casts, materializing a second full-precision copy
+ * of all weights inside the WASM heap. For a ~160 MB model that exhausts
+ * the heap and session creation dies with "std::bad_alloc".
+ */
+const SESSION_OPTIONS: ort.InferenceSession.SessionOptions = {
+  graphOptimizationLevel: "disabled",
+};
+
+/**
  * Creates a session preferring WebGPU, falling back to (multi-threaded)
  * WASM. Trying the providers separately lets us report which backend
  * actually ended up running.
@@ -76,6 +88,7 @@ async function createSession(modelBytes: Uint8Array): Promise<CreatedSession> {
   if (supportsWebGpu) {
     try {
       const session = await ort.InferenceSession.create(modelBytes, {
+        ...SESSION_OPTIONS,
         executionProviders: ["webgpu"],
       });
       return { session, backend: "webgpu" };
@@ -86,6 +99,7 @@ async function createSession(modelBytes: Uint8Array): Promise<CreatedSession> {
     }
   }
   const session = await ort.InferenceSession.create(modelBytes, {
+    ...SESSION_OPTIONS,
     executionProviders: ["wasm"],
   });
   return { session, backend: "wasm" };
