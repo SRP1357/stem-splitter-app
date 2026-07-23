@@ -178,6 +178,12 @@ export function useStemSeparation() {
       const variant = MODEL_VARIANTS[modelId];
       const stemOrder = variant.stemNames;
       pushLog(`load: ${file.name} · mode: ${variant.label.toLowerCase()}`);
+      if (isWebGpuKnownUnusable()) {
+        pushLog(
+          "gpu failed on a previous run here — going straight to cpu, may take a bit longer",
+          "warn",
+        );
+      }
       pushLog("decoding audio…");
 
       // Run-scoped dedupe so progress logs fire once per milestone.
@@ -243,12 +249,32 @@ export function useStemSeparation() {
               }));
               break;
             }
-            case "backend-selected":
-              pushLog(
-                message.backend === "webgpu"
-                  ? "backend: webgpu — gpu acceleration active"
-                  : "backend: wasm — running on cpu (multithreaded)",
-              );
+            case "backend-selected": {
+              if (message.backend === "webgpu") {
+                pushLog("backend: webgpu — gpu acceleration active");
+              } else {
+                if (message.wasmReason === "no-webgpu") {
+                  pushLog(
+                    "gpu not available in this browser — falling back to cpu",
+                    "warn",
+                  );
+                } else if (message.wasmReason === "init-failed") {
+                  pushLog(
+                    "gpu found but failed to initialize — falling back to cpu",
+                    "warn",
+                  );
+                }
+                const threads = message.threads ?? 1;
+                pushLog(
+                  `backend: wasm — cpu with ${threads} thread${threads === 1 ? "" : "s"}, may take a bit longer than gpu`,
+                );
+                if (threads === 1) {
+                  pushLog(
+                    "multithreading unavailable in this context — expect slower processing",
+                    "warn",
+                  );
+                }
+              }
               setState((previous) => ({
                 ...previous,
                 backend: message.backend,
@@ -256,6 +282,7 @@ export function useStemSeparation() {
                 progress: 0,
               }));
               break;
+            }
             case "separation-progress": {
               const progress = message.completedUnits / message.totalUnits;
               if (
@@ -317,7 +344,11 @@ export function useStemSeparation() {
               // Replace the worker and redo the whole run on the CPU backend;
               // also remember so future runs skip the doomed GPU attempt.
               pushLog(
-                "gpu device lost — restarting on cpu (this device will skip gpu from now on)",
+                "gpu device lost mid-run (driver reset) — the gpu on this device can't finish the job",
+                "error",
+              );
+              pushLog(
+                "restarting the whole run on cpu — may take a bit longer. future runs will skip the gpu.",
                 "warn",
               );
               rememberWebGpuUnusable();

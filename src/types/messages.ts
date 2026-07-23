@@ -10,6 +10,15 @@ export interface SeparatedStem {
 /** Which execution provider ONNX Runtime ended up using. */
 export type InferenceBackend = "webgpu" | "wasm";
 
+/** Why the worker ended up on the WASM backend, for user-facing logging. */
+export type WasmFallbackReason =
+  /** The main thread asked to skip WebGPU (known-bad GPU or restart). */
+  | "forced"
+  /** The browser has no WebGPU support at all. */
+  | "no-webgpu"
+  /** WebGPU exists but session creation failed (driver/op support). */
+  | "init-failed";
+
 /** Messages the main thread sends to the separation worker. */
 export type WorkerRequest = {
   type: "separate";
@@ -29,7 +38,14 @@ export type WorkerResponse =
       loadedBytes: number;
       totalBytes: number;
     }
-  | { type: "backend-selected"; backend: InferenceBackend }
+  | {
+      type: "backend-selected";
+      backend: InferenceBackend;
+      /** Present when backend is "wasm": why the GPU was not used. */
+      wasmReason?: WasmFallbackReason;
+      /** WASM thread count actually configured (1 = no multithreading). */
+      threads?: number;
+    }
   | {
       type: "separation-progress";
       completedUnits: number;

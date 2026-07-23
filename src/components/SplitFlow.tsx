@@ -182,9 +182,7 @@ export function SplitFlow({
                   stroke={STEM_THEMES[stem].color}
                   strokeWidth={3}
                   strokeDasharray={
-                    isDone
-                      ? `${DASH_FRACTION} ${GAP_FRACTION}`
-                      : dashArrayForProgress(progress)
+                    isDone ? undefined : dashArrayForProgress(progress)
                   }
                   className={isActive ? "animate-path-march" : undefined}
                 />

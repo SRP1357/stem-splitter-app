@@ -30,6 +30,7 @@ import {
 import type {
   InferenceBackend,
   SeparatedStem,
+  WasmFallbackReason,
   WorkerRequest,
   WorkerResponse,
 } from "../types/messages";
@@ -58,6 +59,8 @@ function configureRuntimeEnvironment(): void {
 interface CreatedSession {
   session: ort.InferenceSession;
   backend: InferenceBackend;
+  /** Set when backend is "wasm": why WebGPU was not used. */
+  wasmReason?: WasmFallbackReason;
   /**
    * Rejects if the GPU device is lost mid-run (e.g. Windows' watchdog kills
    * a long-running dispatch with DXGI_ERROR_DEVICE_HUNG). Undefined for WASM.
@@ -116,7 +119,12 @@ async function createSession(
     ...SESSION_OPTIONS,
     executionProviders: ["wasm"],
   });
-  return { session, backend: "wasm" };
+  const wasmReason: WasmFallbackReason = !allowWebGpu
+    ? "forced"
+    : "gpu" in self.navigator
+      ? "init-failed"
+      : "no-webgpu";
+  return { session, backend: "wasm", wasmReason };
 }
 
 /**
@@ -249,10 +257,16 @@ async function separate(
   const chunkBuffer = new Float32Array(CHANNEL_COUNT * SEGMENT_SAMPLES);
 
   let reportedBackend: InferenceBackend | null = null;
-  const reportBackend = (backend: InferenceBackend): void => {
-    if (backend !== reportedBackend) {
-      reportedBackend = backend;
-      post({ type: "backend-selected", backend });
+  const reportBackend = (created: CreatedSession): void => {
+    if (created.backend !== reportedBackend) {
+      reportedBackend = created.backend;
+      post({
+        type: "backend-selected",
+        backend: created.backend,
+        wasmReason: created.wasmReason,
+        threads:
+          created.backend === "wasm" ? ort.env.wasm.numThreads : undefined,
+      });
     }
   };
 
@@ -284,7 +298,7 @@ async function separate(
     };
 
     const created = await createSession(modelBytes, !forceWasm);
-    reportBackend(created.backend);
+    reportBackend(created);
 
     let accumulators: Float32Array[][];
     try {
