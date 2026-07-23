@@ -8,20 +8,24 @@ interface ModelPickerProps {
 }
 
 /** Radio-card selector for the three model variants. */
-export function ModelPicker({ selected, disabled, onSelect }: ModelPickerProps) {
+export function ModelPicker({
+  selected,
+  disabled,
+  onSelect,
+}: ModelPickerProps) {
   return (
     <fieldset className="grid gap-3 sm:grid-cols-3" disabled={disabled}>
-      <legend className="mb-2 text-sm font-medium text-zinc-400">Model</legend>
+      <legend className="sr-only">Model</legend>
       {Object.values(MODEL_VARIANTS).map((variant) => {
         const isSelected = variant.id === selected;
         return (
           <label
             key={variant.id}
-            className={`flex cursor-pointer flex-col gap-1 rounded-xl border p-4 transition-colors ${
+            className={`flex flex-col gap-1 rounded-xl border bg-white p-4 shadow-sm transition-all ${
               isSelected
-                ? "border-emerald-400 bg-emerald-400/10"
-                : "border-zinc-800 bg-zinc-900 hover:border-zinc-600"
-            } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                ? "border-stone-900 ring-1 ring-stone-900"
+                : "border-stone-200 hover:border-stone-400"
+            } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
           >
             <input
               type="radio"
@@ -31,9 +35,13 @@ export function ModelPicker({ selected, disabled, onSelect }: ModelPickerProps) 
               onChange={() => onSelect(variant.id)}
               className="sr-only"
             />
-            <span className="font-semibold text-zinc-100">{variant.label}</span>
-            <span className="text-xs text-zinc-400">{variant.description}</span>
-            <span className="mt-1 text-xs text-zinc-500">
+            <span className="font-semibold text-stone-900">
+              {variant.label}
+            </span>
+            <span className="text-xs leading-relaxed text-stone-500">
+              {variant.description}
+            </span>
+            <span className="mt-1 text-xs text-stone-400">
               ~{variant.approximateDownloadMb} MB download (one-time)
             </span>
           </label>

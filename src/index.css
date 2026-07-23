@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
 body {
-  @apply bg-zinc-950 text-zinc-200 antialiased;
+  @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+/*
+ * Marching-dash animation for in-progress flow paths. The paths are
+ * normalised with pathLength=1, so offsets are in fractions of the path;
+ * -0.048 is exactly one dash+gap period, making the loop seamless.
+ */
+@keyframes path-march {
+  to {
+    stroke-dashoffset: -0.048;
+  }
+}
+
+.animate-path-march {
+  animation: path-march 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-path-march {
+    animation: none;
+  }
 }
