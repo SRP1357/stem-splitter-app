@@ -1,0 +1,29 @@
+{
+  "chunkBytes": 94371840,
+  "files": {
+    "htdemucs_6s_fp16weights.onnx": {
+      "totalBytes": 136428532,
+      "parts": 2
+    },
+    "htdemucs_fp16weights.onnx": {
+      "totalBytes": 165612636,
+      "parts": 2
+    },
+    "htdemucs_ft_bass_fp16weights.onnx": {
+      "totalBytes": 165612636,
+      "parts": 2
+    },
+    "htdemucs_ft_drums_fp16weights.onnx": {
+      "totalBytes": 165612636,
+      "parts": 2
+    },
+    "htdemucs_ft_other_fp16weights.onnx": {
+      "totalBytes": 165612636,
+      "parts": 2
+    },
+    "htdemucs_ft_vocals_fp16weights.onnx": {
+      "totalBytes": 165612636,
+      "parts": 2
+    }
+  }
+}
