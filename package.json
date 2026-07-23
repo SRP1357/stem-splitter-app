@@ -13,6 +13,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "coi-serviceworker": "^0.1.7",
     "onnxruntime-web": "^1.27.0",

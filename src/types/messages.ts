@@ -48,3 +48,17 @@ export type WorkerResponse =
    */
   | { type: "webgpu-device-lost" }
   | { type: "error"; message: string };
+
+/** Request to the MP3 encoder worker: 16-bit stereo PCM at the model rate. */
+export interface Mp3Request {
+  requestId: number;
+  left: Int16Array;
+  right: Int16Array;
+}
+
+/** Reply from the MP3 encoder worker. */
+export interface Mp3Response {
+  requestId: number;
+  blob?: Blob;
+  error?: string;
+}

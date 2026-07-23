@@ -3,7 +3,8 @@
  * universally compatible format for downloaded stems.
  */
 
-const RIFF_HEADER_BYTES = 44;
+/** Exported so the MP3 path can slice the PCM back out of our own WAVs. */
+export const RIFF_HEADER_BYTES = 44;
 const BYTES_PER_SAMPLE = 2; // 16-bit PCM
 const BITS_PER_SAMPLE = BYTES_PER_SAMPLE * 8;
 const PCM_FORMAT_CODE = 1; // "audio/wav" linear PCM

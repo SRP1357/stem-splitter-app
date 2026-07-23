@@ -55,6 +55,9 @@ export const MODEL_OUTPUT_NAME = "stems";
 /** Guards against division by ~zero when normalising overlap-add weights. */
 export const WEIGHT_EPSILON = 1e-8;
 
+/** Constant bitrate for MP3 downloads — the de-facto "high quality" tier. */
+export const MP3_BITRATE_KBPS = 320;
+
 export const FOUR_STEM_NAMES = ["drums", "bass", "other", "vocals"] as const;
 export const SIX_STEM_NAMES = [
   "drums",

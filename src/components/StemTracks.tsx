@@ -3,7 +3,15 @@ import type { MouseEvent } from "react";
 
 import type { StemName } from "../config/constants";
 import { STEM_THEMES, WAVEFORM_IDLE_COLOR } from "../config/theme";
+import { encodeWavUrlToMp3 } from "../lib/audio/mp3";
 import type { StemResult } from "../hooks/useStemSeparation";
+
+function triggerDownload(url: string, fileName: string): void {
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+}
 
 interface StemTracksProps {
   stemNames: readonly StemName[];
@@ -100,14 +108,36 @@ function TrackLane({ stem, result, sourceFileName }: TrackLaneProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playedFraction, setPlayedFraction] = useState(0);
   const [currentSeconds, setCurrentSeconds] = useState(0);
+  const [isEncodingMp3, setIsEncodingMp3] = useState(false);
+  const mp3UrlRef = useRef<string | null>(null);
 
-  // New separation run for the same stem: reset playback state.
+  // New separation run for the same stem: reset playback and encoded MP3.
   const wavUrl = result?.wavUrl ?? null;
   useEffect(() => {
     setIsPlaying(false);
     setPlayedFraction(0);
     setCurrentSeconds(0);
+    return () => {
+      if (mp3UrlRef.current) {
+        URL.revokeObjectURL(mp3UrlRef.current);
+        mp3UrlRef.current = null;
+      }
+    };
   }, [wavUrl]);
+
+  const downloadMp3 = async () => {
+    if (!result || isEncodingMp3) return;
+    if (!mp3UrlRef.current) {
+      setIsEncodingMp3(true);
+      try {
+        const blob = await encodeWavUrlToMp3(result.wavUrl);
+        mp3UrlRef.current = URL.createObjectURL(blob);
+      } finally {
+        setIsEncodingMp3(false);
+      }
+    }
+    triggerDownload(mp3UrlRef.current, `${baseName} - ${stem}.mp3`);
+  };
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -162,7 +192,7 @@ function TrackLane({ stem, result, sourceFileName }: TrackLaneProps) {
 
   return (
     <div
-      className="flex items-center gap-3 border bg-slate-50 p-3 transition-colors duration-300"
+      className="flex items-center gap-3 border bg-transparent p-3 transition-colors duration-300"
       style={{ borderColor: result ? theme.color : "#cbd5e1" /* slate-300 */ }}
     >
       {result && (
@@ -211,14 +241,26 @@ function TrackLane({ stem, result, sourceFileName }: TrackLaneProps) {
       </span>
 
       {result && (
-        <a
-          href={result.wavUrl}
-          download={`${baseName} - ${stem}.wav`}
-          className="shrink-0 px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white transition-opacity hover:opacity-80"
-          style={{ backgroundColor: theme.color }}
+        <span
+          className="flex shrink-0 gap-1.5"
+          style={{ "--stem-color": theme.color } as React.CSSProperties}
         >
-          Download
-        </a>
+          <a
+            href={result.wavUrl}
+            download={`${baseName} - ${stem}.wav`}
+            className="border border-[var(--stem-color)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--stem-color)] transition-colors hover:bg-[var(--stem-color)] hover:text-white"
+          >
+            WAV
+          </a>
+          <button
+            type="button"
+            onClick={() => void downloadMp3()}
+            disabled={isEncodingMp3}
+            className="border border-[var(--stem-color)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--stem-color)] transition-colors hover:bg-[var(--stem-color)] hover:text-white disabled:cursor-wait"
+          >
+            {isEncodingMp3 ? "…" : "MP3"}
+          </button>
+        </span>
       )}
     </div>
   );
