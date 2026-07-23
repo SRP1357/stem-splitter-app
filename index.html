@@ -5,9 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Split any song into drums, bass, vocals and more — entirely in your browser. No uploads, no servers, your audio never leaves your device."
+      content="Free online stem splitter. Split any song into drums, bass, vocals, guitar and piano with AI (HT-Demucs) — right in your browser. No uploads, no accounts, no limits: your audio never leaves your device."
     />
-    <title>Stem Splitter</title>
+    <title>Stem Splitter — Free AI Stem Separation in Your Browser</title>
+    <link rel="canonical" href="https://srp1357.github.io/stem-splitter-app/" />
+
+    <!-- Social sharing cards (Open Graph / Twitter). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Stem Splitter" />
+    <meta
+      property="og:title"
+      content="Stem Splitter — Free AI Stem Separation in Your Browser"
+    />
+    <meta
+      property="og:description"
+      content="Split any song into drums, bass, vocals and more with AI — free and private. No uploads: everything runs on your device."
+    />
+    <meta property="og:url" content="https://srp1357.github.io/stem-splitter-app/" />
+    <meta name="twitter:card" content="summary" />
+
+    <!-- Structured data so search engines understand this is a free web app. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Stem Splitter",
+        "url": "https://srp1357.github.io/stem-splitter-app/",
+        "description": "Free online stem splitter: split songs into drums, bass, vocals, guitar and piano with AI, entirely in your browser. No uploads or accounts.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any (web browser)",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "AI stem separation (HT-Demucs)",
+          "Drums, bass, vocals, other, guitar and piano stems",
+          "Runs entirely on your device — no uploads",
+          "WAV and 320 kbps MP3 downloads",
+          "Synchronized multi-stem playback"
+        ]
+      }
+    </script>
     <!--
       coi-serviceworker injects the COOP/COEP headers that GitHub Pages cannot
       set, enabling SharedArrayBuffer for multi-threaded WASM inference.
@@ -18,6 +54,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Only visible to crawlers/users without JavaScript. -->
+    <noscript>
+      <p>
+        Stem Splitter is a free online tool that splits songs into drums,
+        bass, vocals and more using AI — entirely in your browser. It
+        requires JavaScript to run.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

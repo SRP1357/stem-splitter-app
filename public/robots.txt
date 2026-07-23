@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://srp1357.github.io/stem-splitter-app/sitemap.xml
