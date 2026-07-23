@@ -41,6 +41,8 @@ of this repository:
 | File | Purpose |
 | --- | --- |
 | `htdemucs_fp16weights.onnx` | Fetched by the website at runtime |
+| `htdemucs_ft_{drums,bass,other,vocals}_fp16weights.onnx` | Fine-tuned specialist ONNX exports — reserved for a future high-quality mode |
+| `htdemucs_6s_fp16weights.onnx` | 6-stem ONNX export (guitar + piano) — reserved for a future option |
 | `htdemucs_original_955717e8-8726e21a.th` | `htdemucs` — the checkpoint the website's ONNX export derives from |
 | `htdemucs_ft_original_f7e0c4bc-ba3fe64a.th` | `htdemucs_ft` drums specialist |
 | `htdemucs_ft_original_d12395a8-e57c48e6.th` | `htdemucs_ft` bass specialist |

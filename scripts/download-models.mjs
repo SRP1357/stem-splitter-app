@@ -31,6 +31,31 @@ const MODEL_SOURCES = [
       "HT-Demucs 4-stem ONNX export (fp16 weights) — served to the website via GitHub Release",
   },
   {
+    fileName: "htdemucs_ft_drums_fp16weights.onnx",
+    url: "https://huggingface.co/StemSplitio/htdemucs-ft-drums-onnx/resolve/main/htdemucs_ft_drums_fp16weights.onnx",
+    description: "htdemucs_ft drums specialist ONNX export (future HQ mode)",
+  },
+  {
+    fileName: "htdemucs_ft_bass_fp16weights.onnx",
+    url: "https://huggingface.co/StemSplitio/htdemucs-ft-bass-onnx/resolve/main/htdemucs_ft_bass_fp16weights.onnx",
+    description: "htdemucs_ft bass specialist ONNX export (future HQ mode)",
+  },
+  {
+    fileName: "htdemucs_ft_other_fp16weights.onnx",
+    url: "https://huggingface.co/StemSplitio/htdemucs-ft-other-onnx/resolve/main/htdemucs_ft_other_fp16weights.onnx",
+    description: "htdemucs_ft other specialist ONNX export (future HQ mode)",
+  },
+  {
+    fileName: "htdemucs_ft_vocals_fp16weights.onnx",
+    url: "https://huggingface.co/StemSplitio/htdemucs-ft-vocals-onnx/resolve/main/htdemucs_ft_vocals_fp16weights.onnx",
+    description: "htdemucs_ft vocals specialist ONNX export (future HQ mode)",
+  },
+  {
+    fileName: "htdemucs_6s_fp16weights.onnx",
+    url: "https://huggingface.co/StemSplitio/htdemucs-6s-onnx/resolve/main/htdemucs_6s_fp16weights.onnx",
+    description: "htdemucs_6s 6-stem ONNX export (guitar + piano, future option)",
+  },
+  {
     fileName: "htdemucs_original_955717e8-8726e21a.th",
     url: `${DEMUCS_CHECKPOINT_BASE_URL}/955717e8-8726e21a.th`,
     description: "htdemucs — the 4-stem model the website's ONNX derives from",
