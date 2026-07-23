@@ -41,7 +41,18 @@ of this repository:
 | File | Purpose |
 | --- | --- |
 | `htdemucs_fp16weights.onnx` | Fetched by the website at runtime |
-| `htdemucs_original_955717e8-8726e21a.th` | Original PyTorch checkpoint — the latest (and final) official `htdemucs` weights, referenced by both the archived Meta repo and the maintained [adefossez/demucs](https://github.com/adefossez/demucs). Archived for record keeping; not used by the website |
+| `htdemucs_original_955717e8-8726e21a.th` | `htdemucs` — the checkpoint the website's ONNX export derives from |
+| `htdemucs_ft_original_f7e0c4bc-ba3fe64a.th` | `htdemucs_ft` drums specialist |
+| `htdemucs_ft_original_d12395a8-e57c48e6.th` | `htdemucs_ft` bass specialist |
+| `htdemucs_ft_original_92cfc3b6-ef3bcb9c.th` | `htdemucs_ft` other specialist |
+| `htdemucs_ft_original_04573f0d-f3cf25b2.th` | `htdemucs_ft` vocals specialist |
+| `htdemucs_6s_original_5c90dfd2-34c22ccb.th` | `htdemucs_6s` — experimental 6-stem model (guitar + piano) |
+
+The `.th` checkpoints are the complete official HT-Demucs v4 family — the
+latest (and final) weights, referenced identically by both the archived Meta
+repo and the maintained [adefossez/demucs](https://github.com/adefossez/demucs).
+They are archived for record keeping and future use (e.g. re-running the ONNX
+export); the website only ever fetches the `.onnx` file.
 
 To re-download both from their upstream sources (Hugging Face / Meta) into the
 local gitignored `models/` folder:
