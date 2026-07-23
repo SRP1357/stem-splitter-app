@@ -35,3 +35,5 @@ export const WAVEFORM_IDLE_COLOR = "#cbd5e1"; // slate-300
  * stem's color at ~35% opacity, so the played portion clearly stands out.
  */
 export const WAVEFORM_UNPLAYED_ALPHA = "59";
+/** Hex alpha for the hover preview (between the playhead and the cursor). */
+export const WAVEFORM_HOVER_ALPHA = "a6";

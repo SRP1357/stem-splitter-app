@@ -21,9 +21,12 @@ interface Connector {
   path: string;
 }
 
-/** Fraction of the path length covered by one dash and one gap. */
+/**
+ * Fraction of the path length covered by one dash and one gap. Equal parts
+ * keep the pattern readable as dashes even while it fills with color.
+ */
 const DASH_FRACTION = 0.03;
-const GAP_FRACTION = 0.018;
+const GAP_FRACTION = 0.03;
 
 /**
  * Builds a stroke-dasharray that paints a dashed pattern over exactly the
@@ -75,8 +78,8 @@ function stemProgress(state: SeparationState, stem: StemName): number {
 
 /**
  * The heart of the UI: the source (drop zone) on the left, one card per
- * stem on the right, and curved connectors that fill with each stem's color
- * as separation progresses.
+ * stem on the right, and right-angled schematic connectors that fill with
+ * each stem's color as separation progresses.
  */
 export function SplitFlow({
   state,
@@ -101,23 +104,30 @@ export function SplitFlow({
     const containerBox = container.getBoundingClientRect();
     const sourceBox = source.getBoundingClientRect();
     const startX = sourceBox.right - containerBox.left;
-    const startY = sourceBox.top + sourceBox.height / 2 - containerBox.top;
 
     const next: Connector[] = [];
-    for (const stem of stemNames) {
+    stemNames.forEach((stem, index) => {
       const node = stemRefs.current.get(stem);
-      if (!node) continue;
+      if (!node) return;
       const box = node.getBoundingClientRect();
       const endX = box.left - containerBox.left;
       const endY = box.top + box.height / 2 - containerBox.top;
-      const bend = (endX - startX) / 2;
+
+      // Each connector leaves from its own spot on the source's right edge
+      // rather than all sharing the centre point.
+      const edgeFraction = (index + 1) / (stemNames.length + 1);
+      const startY =
+        sourceBox.top + sourceBox.height * edgeFraction - containerBox.top;
+
+      // Orthogonal, schematic-style routing: out, one right-angle turn down
+      // (or up), then into the card. Staggered elbow positions keep the
+      // vertical segments from overlapping each other.
+      const elbowX = startX + (endX - startX) * edgeFraction;
       next.push({
         stem,
-        path:
-          `M ${startX} ${startY} ` +
-          `C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`,
+        path: `M ${startX} ${startY} H ${elbowX} V ${endY} H ${endX}`,
       });
-    }
+    });
     setConnectors(next);
   }, [stemNames]);
 
@@ -171,9 +181,10 @@ export function SplitFlow({
                   fill="none"
                   stroke={STEM_THEMES[stem].color}
                   strokeWidth={3}
-                  strokeLinecap="square"
                   strokeDasharray={
-                    isDone ? undefined : dashArrayForProgress(progress)
+                    isDone
+                      ? `${DASH_FRACTION} ${GAP_FRACTION}`
+                      : dashArrayForProgress(progress)
                   }
                   className={isActive ? "animate-path-march" : undefined}
                 />

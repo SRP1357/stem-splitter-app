@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import type { StemName } from "../config/constants";
 import {
   STEM_THEMES,
+  WAVEFORM_HOVER_ALPHA,
   WAVEFORM_IDLE_COLOR,
   WAVEFORM_UNPLAYED_ALPHA,
 } from "../config/theme";
@@ -107,7 +108,9 @@ function drawWaveform(
   canvas: HTMLCanvasElement,
   peaks: Float32Array | null,
   playedFraction: number,
+  hoverFraction: number | null,
   playedColor: string,
+  hoverColor: string,
   unplayedColor: string,
 ): void {
   const context = canvas.getContext("2d");
@@ -134,9 +137,11 @@ function drawWaveform(
   const slot = width / peaks.length;
   const barWidth = Math.max(1, slot * BAR_FILL_RATIO);
   const playedBars = playedFraction * peaks.length;
+  const hoverBars = hoverFraction === null ? -1 : hoverFraction * peaks.length;
   for (let i = 0; i < peaks.length; i++) {
     const barHeight = Math.max(1, peaks[i] * height * WAVEFORM_VERTICAL_FILL);
-    context.fillStyle = i < playedBars ? playedColor : unplayedColor;
+    context.fillStyle =
+      i < playedBars ? playedColor : i < hoverBars ? hoverColor : unplayedColor;
     context.fillRect(i * slot, center - barHeight / 2, barWidth, barHeight);
   }
 }
@@ -166,6 +171,8 @@ function TrackLane({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playedFraction, setPlayedFraction] = useState(0);
   const [currentSeconds, setCurrentSeconds] = useState(0);
+  /** Cursor position over the waveform (0..1), as a seek preview. */
+  const [hoverFraction, setHoverFraction] = useState<number | null>(null);
   const [mp3Url, setMp3Url] = useState<string | null>(null);
 
   // New separation run for the same stem: reset playback state.
@@ -206,11 +213,13 @@ function TrackLane({
         canvas,
         result?.peaks ?? null,
         playedFraction,
+        hoverFraction,
         theme.color,
+        `${theme.color}${WAVEFORM_HOVER_ALPHA}`,
         `${theme.color}${WAVEFORM_UNPLAYED_ALPHA}`,
       );
     }
-  }, [result, playedFraction, theme.color]);
+  }, [result, playedFraction, hoverFraction, theme.color]);
 
   useEffect(redraw, [redraw]);
 
@@ -272,14 +281,15 @@ function TrackLane({
     });
   };
 
+  const fractionAtCursor = (event: MouseEvent<HTMLCanvasElement>): number => {
+    const box = event.currentTarget.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
+  };
+
   const seek = (event: MouseEvent<HTMLCanvasElement>) => {
     const audio = audioRef.current;
     if (!audio || !result) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    const fraction = Math.max(
-      0,
-      Math.min(1, (event.clientX - box.left) / box.width),
-    );
+    const fraction = fractionAtCursor(event);
     const seconds = fraction * result.durationSeconds;
     audio.currentTime = seconds;
     // Keep any other playing stems locked to the same position.
@@ -318,11 +328,8 @@ function TrackLane({
         onClick={togglePlayback}
         disabled={!result}
         aria-label={`${isPlaying ? "Pause" : "Play"} ${stem}`}
-        className="h-8 w-8 shrink-0 border text-[11px] leading-none transition-colors disabled:cursor-not-allowed"
-        style={{
-          borderColor: result ? theme.color : "#cbd5e1",
-          color: result ? theme.color : "#94a3b8", // slate-400
-        }}
+        className="h-8 w-8 shrink-0 border border-[var(--stem-color)] text-[11px] leading-none text-[var(--stem-color)] transition-colors enabled:hover:bg-[var(--stem-color)] enabled:hover:text-white disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
+        style={{ "--stem-color": theme.color } as React.CSSProperties}
       >
         {isPlaying ? "❚❚" : "▶"}
       </button>
@@ -334,6 +341,12 @@ function TrackLane({
       <canvas
         ref={canvasRef}
         onClick={seek}
+        onMouseMove={
+          result
+            ? (event) => setHoverFraction(fractionAtCursor(event))
+            : undefined
+        }
+        onMouseLeave={result ? () => setHoverFraction(null) : undefined}
         className={`min-w-0 flex-1 ${result ? "cursor-pointer" : ""}`}
         style={{ height: LANE_HEIGHT_PX }}
       />

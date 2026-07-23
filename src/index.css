@@ -12,11 +12,11 @@ body {
 /*
  * Marching-dash animation for in-progress flow paths. The paths are
  * normalised with pathLength=1, so offsets are in fractions of the path;
- * -0.048 is exactly one dash+gap period, making the loop seamless.
+ * -0.06 is exactly one dash+gap period, making the loop seamless.
  */
 @keyframes path-march {
   to {
-    stroke-dashoffset: -0.048;
+    stroke-dashoffset: -0.06;
   }
 }
 
