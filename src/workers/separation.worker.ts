@@ -58,6 +58,12 @@ function configureRuntimeEnvironment(): void {
 interface CreatedSession {
   session: ort.InferenceSession;
   backend: InferenceBackend;
+  /**
+   * Rejects if the GPU device is lost mid-run (e.g. Windows' watchdog kills
+   * a long-running dispatch with DXGI_ERROR_DEVICE_HUNG). Undefined for WASM.
+   * Without this, a lost device leaves session.run() pending forever.
+   */
+  deviceLost?: Promise<never>;
 }
 
 /**
@@ -91,7 +97,11 @@ async function createSession(modelBytes: Uint8Array): Promise<CreatedSession> {
         ...SESSION_OPTIONS,
         executionProviders: ["webgpu"],
       });
-      return { session, backend: "webgpu" };
+      const device = await ort.env.webgpu.device;
+      const deviceLost = device.lost.then((info): never => {
+        throw new Error(`WebGPU device lost: ${info.message}`);
+      });
+      return { session, backend: "webgpu", deviceLost };
     } catch {
       // Fall through to WASM: WebGPU may be present but unusable
       // (unsupported ops, driver issues, ...).
@@ -125,6 +135,98 @@ function buildWeightProfile(
   return weights;
 }
 
+/** Everything a single model file's inference pass needs. */
+interface FilePassContext {
+  channels: Float32Array[];
+  totalSamples: number;
+  totalChunks: number;
+  totalUnits: number;
+  window: Float32Array;
+  chunkBuffer: Float32Array;
+  fileIndex: number;
+  fileCount: number;
+  outputRows: number[];
+}
+
+/**
+ * Runs the chunked overlap-add inference loop for one model file and returns
+ * per-row/per-channel accumulators. Each run is raced against the GPU
+ * device-lost promise so a hung device rejects instead of pending forever.
+ */
+async function runFilePass(
+  { session, deviceLost }: CreatedSession,
+  context: FilePassContext,
+): Promise<Float32Array[][]> {
+  const {
+    channels,
+    totalSamples,
+    totalChunks,
+    totalUnits,
+    window,
+    chunkBuffer,
+    fileIndex,
+    fileCount,
+    outputRows,
+  } = context;
+
+  // Accumulators only for the rows this file contributes.
+  const accumulators = outputRows.map(() =>
+    channels.map(() => new Float32Array(totalSamples)),
+  );
+
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const start = chunkIndex * STRIDE_SAMPLES;
+    const end = Math.min(start + SEGMENT_SAMPLES, totalSamples);
+    const chunkLength = end - start;
+
+    // Zero-pad the final partial chunk.
+    chunkBuffer.fill(0);
+    for (let channel = 0; channel < CHANNEL_COUNT; channel++) {
+      chunkBuffer
+        .subarray(
+          channel * SEGMENT_SAMPLES,
+          channel * SEGMENT_SAMPLES + chunkLength,
+        )
+        .set(channels[channel].subarray(start, end));
+    }
+
+    const inputTensor = new ort.Tensor("float32", chunkBuffer, [
+      1,
+      CHANNEL_COUNT,
+      SEGMENT_SAMPLES,
+    ]);
+    const runPromise = session.run({ [MODEL_INPUT_NAME]: inputTensor });
+    const results = deviceLost
+      ? await Promise.race([runPromise, deviceLost])
+      : await runPromise;
+
+    // Output tensor shape: (1, rows, channels, samples), flattened.
+    const stems = results[MODEL_OUTPUT_NAME].data as Float32Array;
+
+    for (let rowSlot = 0; rowSlot < outputRows.length; rowSlot++) {
+      const row = outputRows[rowSlot];
+      for (let channel = 0; channel < CHANNEL_COUNT; channel++) {
+        const sourceOffset = (row * CHANNEL_COUNT + channel) * SEGMENT_SAMPLES;
+        const target = accumulators[rowSlot][channel];
+        for (let sample = 0; sample < chunkLength; sample++) {
+          target[start + sample] +=
+            stems[sourceOffset + sample] * window[sample];
+        }
+      }
+    }
+
+    post({
+      type: "separation-progress",
+      completedUnits: fileIndex * totalChunks + chunkIndex + 1,
+      totalUnits,
+      passIndex: fileIndex,
+      passCount: fileCount,
+    });
+  }
+
+  return accumulators;
+}
+
 async function separate(
   modelId: ModelVariantId,
   left: Float32Array,
@@ -141,8 +243,13 @@ async function separate(
   const channels = [left, right];
   const chunkBuffer = new Float32Array(CHANNEL_COUNT * SEGMENT_SAMPLES);
 
-  let backendReported = false;
-  let completedUnits = 0;
+  let reportedBackend: InferenceBackend | null = null;
+  const reportBackend = (backend: InferenceBackend): void => {
+    if (backend !== reportedBackend) {
+      reportedBackend = backend;
+      post({ type: "backend-selected", backend });
+    }
+  };
 
   for (let fileIndex = 0; fileIndex < variant.files.length; fileIndex++) {
     const file = variant.files[fileIndex];
@@ -159,69 +266,37 @@ async function separate(
         }),
     );
 
-    const { session, backend } = await createSession(modelBytes);
-    if (!backendReported) {
-      backendReported = true;
-      post({ type: "backend-selected", backend });
-    }
+    const context: FilePassContext = {
+      channels,
+      totalSamples,
+      totalChunks,
+      totalUnits,
+      window,
+      chunkBuffer,
+      fileIndex,
+      fileCount: variant.files.length,
+      outputRows: file.outputRows,
+    };
 
-    // Accumulators only for the rows this file contributes.
-    const accumulators = file.outputRows.map(() =>
-      channels.map(() => new Float32Array(totalSamples)),
-    );
+    let created = await createSession(modelBytes);
+    reportBackend(created.backend);
 
+    let accumulators: Float32Array[][];
     try {
-      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-        const start = chunkIndex * STRIDE_SAMPLES;
-        const end = Math.min(start + SEGMENT_SAMPLES, totalSamples);
-        const chunkLength = end - start;
-
-        // Zero-pad the final partial chunk.
-        chunkBuffer.fill(0);
-        for (let channel = 0; channel < CHANNEL_COUNT; channel++) {
-          chunkBuffer
-            .subarray(
-              channel * SEGMENT_SAMPLES,
-              channel * SEGMENT_SAMPLES + chunkLength,
-            )
-            .set(channels[channel].subarray(start, end));
-        }
-
-        const inputTensor = new ort.Tensor("float32", chunkBuffer, [
-          1,
-          CHANNEL_COUNT,
-          SEGMENT_SAMPLES,
-        ]);
-        const results = await session.run({ [MODEL_INPUT_NAME]: inputTensor });
-
-        // Output tensor shape: (1, rows, channels, samples), flattened.
-        const stems = results[MODEL_OUTPUT_NAME].data as Float32Array;
-
-        for (let rowSlot = 0; rowSlot < file.outputRows.length; rowSlot++) {
-          const row = file.outputRows[rowSlot];
-          for (let channel = 0; channel < CHANNEL_COUNT; channel++) {
-            const sourceOffset =
-              (row * CHANNEL_COUNT + channel) * SEGMENT_SAMPLES;
-            const target = accumulators[rowSlot][channel];
-            for (let sample = 0; sample < chunkLength; sample++) {
-              target[start + sample] +=
-                stems[sourceOffset + sample] * window[sample];
-            }
-          }
-        }
-
-        completedUnits++;
-        post({
-          type: "separation-progress",
-          completedUnits,
-          totalUnits,
-          passIndex: fileIndex,
-          passCount: variant.files.length,
-        });
-      }
-    } finally {
-      await session.release();
+      accumulators = await runFilePass(created, context);
+    } catch (error) {
+      if (created.backend !== "webgpu") throw error;
+      // The GPU died mid-run (typically Windows' watchdog killing a
+      // long-running dispatch). Redo this file on the WASM backend, which
+      // is slower but dependable. Don't await release: it can hang on a
+      // dead device.
+      webGpuKnownUnusable = true;
+      void created.session.release().catch(() => undefined);
+      created = await createSession(modelBytes);
+      reportBackend(created.backend);
+      accumulators = await runFilePass(created, context);
     }
+    await created.session.release();
 
     const finishedStems: SeparatedStem[] = file.outputRows.map(
       (row, rowSlot) => {
