@@ -57,7 +57,9 @@ export default function App() {
 
       <FileDropZone
         disabled={isBusy}
-        onFileSelected={(file) => separate(file, selectedModel)}
+        onFileSelected={(file) => {
+          void separate(file, selectedModel);
+        }}
       />
 
       {isBusy && (

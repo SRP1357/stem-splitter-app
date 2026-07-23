@@ -89,6 +89,20 @@ To (re)publish the release:
 gh release create models-v1 --title "Model files" --notes "HT-Demucs model binaries" models/*
 ```
 
+To (re)publish the `model-chunks` branch after changing models:
+
+```bash
+npm run chunk:models                          # writes build/model-chunks/
+git worktree add ../model-chunks-worktree --detach
+cd ../model-chunks-worktree
+git checkout --orphan model-chunks            # or plain checkout if it exists
+git rm -rfq . 2>/dev/null || true
+cp ../stem-splitter-app/build/model-chunks/* .
+git add -A && git commit -m "Update model chunks"
+git push -f -u origin model-chunks
+cd ../stem-splitter-app && git worktree remove ../model-chunks-worktree
+```
+
 ## Deployment
 
 Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds the

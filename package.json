@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "copy:runtime-assets": "node scripts/copy-runtime-assets.mjs",
     "download:models": "node scripts/download-models.mjs",
-    "chunk:models": "node scripts/publish-model-chunks.mjs"
+    "chunk:models": "node scripts/publish-model-chunks.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "coi-serviceworker": "^0.1.7",
@@ -18,13 +19,17 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
+    "eslint": "^10.7.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
+    "typescript-eslint": "^8.65.0",
     "vite": "^8.1.1"
   }
 }

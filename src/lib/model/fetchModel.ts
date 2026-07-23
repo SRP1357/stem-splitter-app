@@ -31,7 +31,12 @@ function getManifest(): Promise<ChunkManifest> {
       );
     }
     return (await response.json()) as ChunkManifest;
-  })();
+  })().catch((error: unknown) => {
+    // Don't cache failures: a transient network error should not disable
+    // model downloads until the page is reloaded.
+    manifestPromise = null;
+    throw error;
+  });
   return manifestPromise;
 }
 
