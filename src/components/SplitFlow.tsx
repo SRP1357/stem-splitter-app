@@ -133,7 +133,7 @@ export function SplitFlow({
   return (
     <div
       ref={containerRef}
-      className="relative grid grid-cols-[1fr_5rem_1fr] items-center sm:grid-cols-[1fr_8rem_1.1fr]"
+      className="relative grid grid-cols-[1fr_6rem_1fr] items-center sm:grid-cols-[1fr_13rem_1.1fr]"
     >
       {/* Connectors live behind the cards. */}
       <svg
@@ -151,7 +151,7 @@ export function SplitFlow({
                 pathLength={1}
                 fill="none"
                 stroke={IDLE_PATH_COLOR}
-                strokeWidth={1.5}
+                strokeWidth={2}
                 strokeDasharray={`${DASH_FRACTION} ${GAP_FRACTION}`}
               />
               {progress > 0 && (
@@ -160,8 +160,8 @@ export function SplitFlow({
                   pathLength={1}
                   fill="none"
                   stroke={STEM_THEMES[stem].color}
-                  strokeWidth={2}
-                  strokeLinecap="round"
+                  strokeWidth={3}
+                  strokeLinecap="square"
                   strokeDasharray={
                     isDone ? undefined : dashArrayForProgress(progress)
                   }

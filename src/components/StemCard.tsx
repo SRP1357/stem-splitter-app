@@ -32,23 +32,23 @@ export function StemCard({
   return (
     <div
       ref={ref}
-      className="rounded-xl border bg-white p-3 shadow-sm transition-all duration-300"
+      className="border bg-slate-50 p-3 transition-all duration-300"
       style={{
-        borderColor: result || isActive ? theme.color : "#e2e8f0", // slate-200
+        borderColor: result || isActive ? theme.color : "#cbd5e1", // slate-300
         backgroundColor: result ? theme.tint : undefined,
       }}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-sm font-medium capitalize text-slate-800">
+        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-800">
           <span
             aria-hidden="true"
-            className="inline-block h-2 w-2 rounded-full"
+            className="inline-block h-2 w-2"
             style={{ backgroundColor: theme.color }}
           />
           {stem}
         </span>
         {isActive && (
-          <span className="text-xs tabular-nums text-slate-400">
+          <span className="text-[11px] tabular-nums text-slate-400">
             {Math.round(progress * 100)}%
           </span>
         )}
@@ -56,7 +56,7 @@ export function StemCard({
           <a
             href={result.wavUrl}
             download={`${baseName} - ${stem}.wav`}
-            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-80"
+            className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white transition-opacity hover:opacity-80"
             style={{ backgroundColor: theme.color }}
           >
             Download

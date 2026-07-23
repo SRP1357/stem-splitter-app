@@ -1,12 +1,12 @@
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
 body {
-  @apply bg-slate-100 text-slate-800 antialiased;
+  @apply bg-slate-200 text-slate-800 antialiased;
 }
 
 /*

@@ -21,10 +21,10 @@ export function ModelPicker({
         return (
           <label
             key={variant.id}
-            className={`flex flex-col gap-1 rounded-xl border p-4 transition-all ${
+            className={`flex flex-col gap-1.5 border p-4 transition-colors ${
               isSelected
-                ? "border-slate-400 bg-white shadow-sm"
-                : "border-slate-200 bg-white/50 hover:border-slate-300 hover:bg-white"
+                ? "border-slate-700 bg-slate-50"
+                : "border-slate-300 bg-slate-100 hover:border-slate-500"
             } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
           >
             <input
@@ -35,14 +35,14 @@ export function ModelPicker({
               onChange={() => onSelect(variant.id)}
               className="sr-only"
             />
-            <span className="text-sm font-medium text-slate-900">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-900">
               {variant.label}
             </span>
-            <span className="text-xs leading-relaxed text-slate-500">
+            <span className="text-[11px] leading-relaxed text-slate-500">
               {variant.description}
             </span>
-            <span className="mt-1 text-xs text-slate-400">
-              ~{variant.approximateDownloadMb} MB download (one-time)
+            <span className="mt-1 text-[11px] text-slate-400">
+              ~{variant.approximateDownloadMb} MB · one-time download
             </span>
           </label>
         );
