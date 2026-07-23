@@ -9,6 +9,22 @@ interface FileDropZoneProps {
   state: SeparationState;
 }
 
+/** Persistent backend note shown for the whole separation phase. */
+function backendLine(state: SeparationState): string | null {
+  if (!state.backend) return null;
+  if (state.backend === "webgpu") return "Running on GPU (WebGPU)";
+  switch (state.wasmReason) {
+    case "forced":
+      return "Running on CPU — GPU is disabled after failing on this device";
+    case "no-webgpu":
+      return "Running on CPU — this browser has no GPU (WebGPU) support";
+    case "init-failed":
+      return "Running on CPU — the GPU failed to initialize";
+    default:
+      return "Running on CPU (WASM)";
+  }
+}
+
 function statusLine(state: SeparationState): string | null {
   const filePosition =
     state.fileCount > 1 ? ` ${state.currentFile}/${state.fileCount}` : "";
@@ -90,12 +106,8 @@ export function FileDropZone({
             {state.fileName}
           </p>
           {status && <p className="mt-2 text-sm text-slate-600">{status}</p>}
-          {state.backend && state.phase === "separating" && (
-            <p className="mt-2 text-xs text-slate-500">
-              Running on{" "}
-              {state.backend === "webgpu" ? "GPU (WebGPU)" : "CPU (WASM)"}
-              {state.backend === "wasm" && " — hang tight on long tracks"}
-            </p>
+          {state.phase === "separating" && backendLine(state) && (
+            <p className="mt-2 text-xs text-slate-500">{backendLine(state)}</p>
           )}
         </>
       ) : (

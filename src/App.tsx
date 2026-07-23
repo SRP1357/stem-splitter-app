@@ -26,8 +26,8 @@ export default function App() {
           Stem Splitter
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-600">
-          Split any song into its stems — drums, bass, vocals and more —
-          entirely in your browser. Nothing is ever uploaded.
+          High-quality stem separation, completely free. Everything runs on
+          your device — nothing is ever uploaded.
         </p>
       </header>
 
@@ -63,8 +63,8 @@ export default function App() {
       )}
 
       <footer className="mt-auto pt-8 text-center text-xs text-slate-500">
-        Powered by HT-Demucs (Alexandre Défossez / Meta AI) via ONNX Runtime
-        Web. All processing happens on your device.
+        Powered by HT-Demucs via ONNX Runtime Web. All processing happens on
+        your device.
       </footer>
     </main>
   );

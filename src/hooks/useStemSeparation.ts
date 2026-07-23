@@ -11,6 +11,7 @@ import { decodeAudioFile } from "../lib/audio/decode";
 import { encodeWavStereo } from "../lib/audio/wavEncoder";
 import type {
   InferenceBackend,
+  WasmFallbackReason,
   WorkerRequest,
   WorkerResponse,
 } from "../types/messages";
@@ -66,12 +67,6 @@ export interface LogEntry {
   time: string;
   text: string;
   tone: LogTone;
-  /**
-   * Entries with the same key overwrite the previous entry in place when it
-   * is still the newest line, instead of appending. Used for progress
-   * updates so they don't flush informative lines out of the visible window.
-   */
-  coalesceKey?: string;
 }
 
 export interface SeparationState {
@@ -82,6 +77,8 @@ export interface SeparationState {
   currentFile: number;
   fileCount: number;
   backend: InferenceBackend | null;
+  /** Set when backend is "wasm": why the GPU was not used. */
+  wasmReason: WasmFallbackReason | null;
   modelId: ModelVariantId | null;
   fileName: string | null;
   /** Grows incrementally: specialist stems appear as soon as they finish. */
@@ -120,6 +117,7 @@ const INITIAL_STATE: SeparationState = {
   currentFile: 1,
   fileCount: 1,
   backend: null,
+  wasmReason: null,
   modelId: null,
   fileName: null,
   stems: [],
@@ -144,35 +142,18 @@ export function useStemSeparation() {
   const [state, setState] = useState<SeparationState>(INITIAL_STATE);
   const nextLogId = useRef(1);
 
-  const pushLog = useCallback(
-    (text: string, tone: LogTone = "info", coalesceKey?: string) => {
-      const time = new Date().toTimeString().slice(0, 8);
-      setState((previous) => {
-        const last = previous.log[previous.log.length - 1];
-        if (coalesceKey && last && last.coalesceKey === coalesceKey) {
-          // Overwrite the still-newest progress line in place (same id, so
-          // the UI updates the text without replaying the entry animation).
-          const updated: LogEntry = { ...last, text, time };
-          return {
-            ...previous,
-            log: [...previous.log.slice(0, -1), updated],
-          };
-        }
-        const entry: LogEntry = {
-          id: nextLogId.current++,
-          time,
-          text,
-          tone,
-          coalesceKey,
-        };
-        return {
-          ...previous,
-          log: [...previous.log, entry].slice(-MAX_LOG_ENTRIES),
-        };
-      });
-    },
-    [],
-  );
+  const pushLog = useCallback((text: string, tone: LogTone = "info") => {
+    const entry: LogEntry = {
+      id: nextLogId.current++,
+      time: new Date().toTimeString().slice(0, 8),
+      text,
+      tone,
+    };
+    setState((previous) => ({
+      ...previous,
+      log: [...previous.log, entry].slice(-MAX_LOG_ENTRIES),
+    }));
+  }, []);
 
   const releaseStemUrls = useCallback((stems: StemResult[]) => {
     for (const stem of stems) URL.revokeObjectURL(stem.wavUrl);
@@ -201,12 +182,6 @@ export function useStemSeparation() {
       const variant = MODEL_VARIANTS[modelId];
       const stemOrder = variant.stemNames;
       pushLog(`load: ${file.name} · mode: ${variant.label.toLowerCase()}`);
-      if (isWebGpuKnownUnusable()) {
-        pushLog(
-          "gpu failed on a previous run here — going straight to cpu, may take a bit longer",
-          "warn",
-        );
-      }
       pushLog("decoding audio…");
 
       // Run-scoped dedupe so progress logs fire once per milestone.
@@ -286,6 +261,11 @@ export function useStemSeparation() {
                     "gpu found but failed to initialize — falling back to cpu",
                     "warn",
                   );
+                } else if (message.wasmReason === "forced") {
+                  pushLog(
+                    "gpu skipped — it failed on this device before, using cpu instead",
+                    "warn",
+                  );
                 }
                 const threads = message.threads ?? 1;
                 pushLog(
@@ -301,6 +281,7 @@ export function useStemSeparation() {
               setState((previous) => ({
                 ...previous,
                 backend: message.backend,
+                wasmReason: message.wasmReason ?? null,
                 phase: "separating",
                 progress: 0,
               }));
@@ -322,8 +303,6 @@ export function useStemSeparation() {
                 runLog.lastProgressStep = step;
                 pushLog(
                   `separating… ${Math.round(step * LOG_PROGRESS_STEP * 100)}%`,
-                  "info",
-                  "separation-progress",
                 );
               }
               setState((previous) => ({
