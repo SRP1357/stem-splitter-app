@@ -74,11 +74,15 @@ export function FileDropZone({
       }}
       onDragLeave={() => setIsDragActive(false)}
       onDrop={handleDrop}
-      className={`w-full border border-dashed bg-slate-50 p-8 text-center transition-colors ${
+      className={`w-full border bg-slate-50 p-8 text-center transition-all ${
         isDragActive
-          ? "border-slate-700 bg-white"
-          : "border-slate-400 hover:border-slate-600"
-      } ${disabled ? "cursor-wait" : "cursor-pointer"}`}
+          ? "border-solid border-slate-700 bg-white ring-1 ring-inset ring-slate-700"
+          : "border-dashed border-slate-400"
+      } ${
+        disabled
+          ? "cursor-wait"
+          : "cursor-pointer hover:border-solid hover:border-slate-700 hover:bg-white"
+      }`}
     >
       {state.fileName ? (
         <>

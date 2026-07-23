@@ -21,11 +21,17 @@ export function ModelPicker({
         return (
           <label
             key={variant.id}
-            className={`flex flex-col gap-1.5 border p-4 transition-colors ${
+            className={`flex flex-col gap-1.5 border p-4 transition-all ${
               isSelected
-                ? "border-slate-700 bg-slate-50"
-                : "border-slate-300 bg-slate-100 hover:border-slate-500"
-            } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                ? "border-slate-700 bg-slate-50 ring-1 ring-inset ring-slate-700"
+                : "border-slate-300 bg-slate-100"
+            } ${
+              disabled
+                ? "cursor-not-allowed opacity-60"
+                : isSelected
+                  ? "cursor-pointer hover:bg-white"
+                  : "cursor-pointer hover:border-slate-600 hover:bg-white hover:ring-1 hover:ring-inset hover:ring-slate-600"
+            }`}
           >
             <input
               type="radio"
